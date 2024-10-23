@@ -1,0 +1,13 @@
+<RCC>
+    <qresource prefix="/">
+        <file>icon/logo.svg</file>
+        <file>icon/step1.svg</file>
+        <file>icon/step2.svg</file>
+        <file>icon/step3.svg</file>
+        <file>icon/step4.svg</file>
+        <file>icon/step5.svg</file>
+        <file>icon/step6.svg</file>
+        <file>qss/main.qss</file>
+        <file>breathinglight.qml</file>
+    </qresource>
+</RCC>
