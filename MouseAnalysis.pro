@@ -10,14 +10,25 @@ RC_ICONS  = logo.ico
 #DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs deprecated before Qt 6.0.0
 
 SOURCES += \
+    component/canvaseitembase.cpp \
     component/clickablewidget.cpp \
+    component/comboxitemdelegate.cpp \
     component/commandprocess.cpp \
+    component/configsaver.cpp \
+    component/imagelist.cpp \
+    component/mygraphicsview.cpp \
     main.cpp \
     mainwindow.cpp
 
 HEADERS += \
+    component/canvaseitembase.h \
     component/clickablewidget.h \
+    component/comboxitemdelegate.h \
     component/commandprocess.h \
+    component/common.h \
+    component/configsaver.h \
+    component/imagelist.h \
+    component/mygraphicsview.h \
     mainwindow.h
 
 FORMS += \

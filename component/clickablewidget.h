@@ -13,7 +13,9 @@
 using  GradientColorPair = QPair<QColor, QColor>;
 
 
-
+/**
+ * @brief The StyleSheetAnimation class 动画效果，实现背景色的渐变
+ */
 class StyleSheetAnimation: public QPropertyAnimation{
 public:
     using QPropertyAnimation::QPropertyAnimation;
@@ -35,6 +37,10 @@ public:
 };
 
 
+/**
+ * @brief The ClickableWidget class
+ * 继承 QWidget，实现可点击的 widget，添加动画效果。
+ */
 class ClickableWidget : public QWidget
 {
     Q_OBJECT

@@ -52,16 +52,21 @@ QProcess* CommandProcess::getProcess()
     return m_process;
 }
 
-QString CommandProcess::wrapperHTML(QString str, bool success)
+QString CommandProcess::wrapperHTML(QString str, LOG log)
 {
-    if(success == true)
+    switch(log)
+    {
+    case LOG::SUCCESS:
         return QString("<span style='font-size: 10pt; color: green;'>%1</span>").arg(str);
-    else
+    case LOG::ERROR:
         return QString("<span style='font-size: 10pt; color: red;'>%1</span>").arg(str);
+    case LOG::INFO:
+        return QString("<span style='font-size: 10pt; color: black;'>%1</span>").arg(str);
+    }
 }
 
 
-void CommandProcess::run()
+void CommandProcess::run() const
 {
     m_process->start(m_program, m_args);  //process在thread中阻塞运行
 
@@ -90,7 +95,7 @@ void CommandProcess::onProcessReadError()
     QTextCodec* codec = QTextCodec::codecForName("UTF-8");
     QString output = codec->toUnicode(data);
 
-    emit resultReady(wrapperHTML(output, false));
+    emit resultReady(wrapperHTML(output, LOG::ERROR));
     qDebug() << QString("%1 %2 output: %3").arg(m_program, m_args.join(' '), output);
 }
 
@@ -106,7 +111,7 @@ void CommandProcess::onProcessStateChanged(QProcess::ProcessState state)
         qDebug() << QString("Starting %1 %2").arg(m_program, m_args.join(' '));
         break;
     case QProcess::Running:
-        emit resultReady(wrapperHTML(QString("Running %1 %2").arg(m_program, m_args.join(' '))));
+        emit resultReady(wrapperHTML(QString("Running %1 %2").arg(m_program, m_args.join(' ')), LOG::INFO));
         qDebug() << QString("Running %1 %2").arg(m_program, m_args.join(' '));
         break;
     }
@@ -115,6 +120,7 @@ void CommandProcess::onProcessStateChanged(QProcess::ProcessState state)
 
 void CommandProcess::onProcessError(QProcess::ProcessError error)
 {
+    emit cmdError(error);
     switch(error)
     {
     case QProcess::FailedToStart:
@@ -147,11 +153,13 @@ void CommandProcess::onProcessExitState(int exitCode, QProcess::ExitStatus exitS
     switch(exitStatus)
     {
     case QProcess::NormalExit:
-        emit resultReady(wrapperHTML(QString("NormalExit %1 %2").arg(m_program, m_args.join(' '))));
+        emit cmdFinish();
+        emit resultReady(wrapperHTML(QString("NormalExit %1 %2").arg(m_program, m_args.join(' ')), LOG::INFO));
         qDebug() << QString("NormalExit %1 %2").arg(m_program, m_args.join(' '));
         break;
     case QProcess::CrashExit:
-        emit resultReady(wrapperHTML(QString("CrashExit %1 %2").arg(m_program, m_args.join(' ')), false));
+        emit cmdError(QProcess::Crashed);
+        emit resultReady(wrapperHTML(QString("CrashExit %1 %2").arg(m_program, m_args.join(' ')), LOG::ERROR));
         qDebug() << QString("CrashExit %1 %2").arg(m_program, m_args.join(' '));
         break;
     }

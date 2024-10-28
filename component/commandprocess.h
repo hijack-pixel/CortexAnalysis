@@ -4,14 +4,22 @@
 #include <QThread>
 #include <QProcess>
 
+
 /**
- * @brief The CommandProcess class 一个简单的运行命令行程序的类，基于QProcess实现
+ * @brief The CommandProcess class
+ * 一个简单的运行命令行程序的类，基于QProcess实现
  */
 class CommandProcess : public QObject
 {
     Q_OBJECT
 
 public:
+    enum LOG{
+        SUCCESS = 0,
+        ERROR,
+        INFO
+    };
+
     explicit CommandProcess(QObject *parent = nullptr);
 
 
@@ -34,7 +42,7 @@ public:
      * @param success      rue表示成功是绿色，false表示失败是红色
      * @return             返回HTML包裹后的字符串
      */
-    QString wrapperHTML(QString str, bool success=true);
+    QString wrapperHTML(QString str, LOG log=LOG::SUCCESS);
 
 signals:
     /**
@@ -43,11 +51,22 @@ signals:
      */
     void resultReady(QString result);
 
+    /**
+     * @brief cmdFinish 程序运行完成
+     */
+    void cmdFinish();
+
+    /**
+     * @brief cmdError 程序运行失败，传递失败信息
+     */
+    void cmdError(QProcess::ProcessError);
+
 public slots:
     /**
      * @brief run 程序在这个函数里运行
      */
-    void run();
+    void run() const;
+
 
 private slots:
 
@@ -65,9 +84,11 @@ private slots:
     void onProcessExitState(int, QProcess::ExitStatus);
 
 private:
+
     QProcess *m_process = nullptr;
     QString m_program;
     QStringList m_args;
+
 };
 
 #endif // COMMANDPROCESS_H
