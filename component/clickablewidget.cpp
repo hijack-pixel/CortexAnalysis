@@ -11,29 +11,76 @@ ClickableWidget::ClickableWidget(QWidget *parent) : QWidget(parent)
     m_animation->setDuration(400);
     m_animation->setEasingCurve(QEasingCurve::InCubic);
 
+    m_animationChecked = new StyleSheetAnimation(this, "", this);
+    m_animationChecked->setDuration(3000);
+    m_animationChecked->setLoopCount(-1);
+    m_animationChecked->setEasingCurve(QEasingCurve::InCubic);
+
+    // connect(m_animationChecked, &QPropertyAnimation::finished, this, &ClickableWidget::updateAnimationState);
 }
 
 
+void ClickableWidget::setChecked(bool state)
+{
+    m_checked = state;
+    if(m_checked)
+    {
+        m_animationChecked->setStartValue(m_color1);
+        m_animationChecked->setKeyValueAt(0.5, m_color2);
+        m_animationChecked->setEndValue(m_color1);
+        m_animationChecked->start();
+    }
+    else
+    {
+        m_animationChecked->stop();
+        setStyleSheet("background-color: transparent;");
+    }
+}
+
+
+void ClickableWidget::updateAnimationState()
+{
+    if(m_checked)
+    {
+        m_animationChecked->start();
+    }
+    else
+    {
+        m_animationChecked->stop();
+    }
+}
+
+
+// 鼠标进入的效果
 void ClickableWidget::enterEvent(QEvent *event)
 {
-    m_animation->setStartValue(m_color1);
-    m_animation->setEndValue(m_color2);
-    m_animation->start();
+    if(!m_checked)
+    {
+        m_animation->setStartValue(m_color1);
+        m_animation->setEndValue(m_color2);
+        m_animation->start();
+    }
     QWidget::enterEvent(event);
 }
 
+
+// 鼠标离开的效果
 void ClickableWidget::leaveEvent(QEvent *event)
 {
-    m_animation->setStartValue(m_color2);
-    m_animation->setEndValue(m_colorTransparent);
-    m_animation->start();
+    if(!m_checked)
+    {
+        m_animation->setStartValue(m_color2);
+        m_animation->setEndValue(m_colorTransparent);
+        m_animation->start();
+    }
     QWidget::leaveEvent(event);
 }
 
+
+// 鼠标按下时的效果
 void ClickableWidget::mousePressEvent(QMouseEvent *event)
 {
-    // 鼠标按下时的效果
-    if (event->button() == Qt::LeftButton) {
+    if (!m_checked && event->button() == Qt::LeftButton) {
         m_animation->setStartValue(m_color1);
         m_animation->setEndValue(m_color2);
         m_animation->start();
@@ -41,16 +88,22 @@ void ClickableWidget::mousePressEvent(QMouseEvent *event)
     QWidget::mousePressEvent(event);
 }
 
+
+// 鼠标释放时的效果
 void ClickableWidget::mouseReleaseEvent(QMouseEvent *event)
 {
-    m_animation->setStartValue(m_color2);
-    m_animation->setEndValue(m_color1);
-    m_animation->start();
+    if(!m_checked)
+    {
+        m_animation->setStartValue(m_color2);
+        m_animation->setEndValue(m_color1);
+        m_animation->start();
+    }
 
     emit clicked();
 
     QWidget::mouseReleaseEvent(event);
 }
+
 
 // void ClickableWidget::paintEvent(QPaintEvent *event)
 // {

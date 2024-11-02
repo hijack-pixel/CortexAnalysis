@@ -14,7 +14,9 @@ SOURCES += \
     component/clickablewidget.cpp \
     component/comboxitemdelegate.cpp \
     component/commandprocess.cpp \
+    component/common.cpp \
     component/configsaver.cpp \
+    component/csvparser.cpp \
     component/imagelist.cpp \
     component/mygraphicsview.cpp \
     main.cpp \
@@ -27,6 +29,7 @@ HEADERS += \
     component/commandprocess.h \
     component/common.h \
     component/configsaver.h \
+    component/csvparser.h \
     component/imagelist.h \
     component/mygraphicsview.h \
     mainwindow.h

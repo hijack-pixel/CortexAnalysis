@@ -32,29 +32,22 @@ MainWindow::MainWindow(QWidget *parent): QMainWindow(parent), ui(new Ui::MainWin
     // this->setWindowFlags(windowFlags()  | Qt::FramelessWindowHint);//无边框
     // this->setAttribute(Qt::WA_TranslucentBackground, true);//窗体背景全透明
 
-    // QColor color(230, 230, 230,240);
-    // QPalette pal(palette());
-    // pal.setColor(QPalette::Window, color);
-    // setAutoFillBackground(true);
-    // setPalette(pal);
+    m_config[STEP1]["module"] = "Registration2ConnectMatrix";
+    m_config[STEP2]["module"] = "cMatrix2NetGraph";
+    m_config[STEP3]["module"] = "Timecourse2spectrum";
+    m_config[STEP4]["module"] = "TimeCorrMap";
+    m_config[STEP5]["module"] = "Quant4SNR";
+    m_config[STEP6]["module"] = "SpatialCorrMap";
 
-    // ui->widgetContainerStep_1->setProperty("widget", "stepContainer");
-    // ui->widgetContainerStep_2->setProperty("widget", "stepContainer");
-    // ui->widgetContainerStep_3->setProperty("widget", "stepContainer");
-    // ui->widgetContainerStep_4->setProperty("widget", "stepContainer");
-    // ui->widgetContainerStep_5->setProperty("widget", "stepContainer");
-    // ui->widgetContainerStep_6->setProperty("widget", "stepContainer");
+    m_config[STEP1]["output_directory"] = "step1";
+    m_config[STEP2]["output_directory"] = "step2";
+    m_config[STEP3]["output_directory"] = "step3";
+    m_config[STEP4]["output_directory"] = "step4";
+    m_config[STEP5]["output_directory"] = "step5";
+    m_config[STEP6]["output_directory"] = "step6";
 
-    // ClickableWidget *widget = new ClickableWidget();
-    // widget->setContentsMargins(QMargins(10, 10, 10, 10));
-    // // widget->setFixedSize(QSize(70, 70));
-    // QHBoxLayout *layout_ = new QHBoxLayout();
-    // layout_->setContentsMargins(0, 0, 10, 0);
-    // QLabel *label1 = new QLabel("你好难啊");
-    // layout_->addWidget(label1);
-    // widget->setLayout(layout_);
-    // ui->verticalLayout_4->addWidget(widget);
 
+    // 状态栏设置
     QHBoxLayout *layout = new QHBoxLayout();
     layout->setContentsMargins(0, 0, 10, 0);
 
@@ -75,12 +68,13 @@ MainWindow::MainWindow(QWidget *parent): QMainWindow(parent), ui(new Ui::MainWin
     widgetStatus->setLayout(layout);
     ui->statusbar->addPermanentWidget(widgetStatus);
 
-    addNewThread("octave", {"E:\\CODE\\Qt\\MouseAnalysis-Octave\\time_consume1.m"});
-    addNewThread("octave", {"E:\\CODE\\Qt\\MouseAnalysis-Octave\\time_consume2.m"});
-    addNewThread("octave", {"E:\\CODE\\Qt\\MouseAnalysis-Octave\\time_consume3.m"});
-    addNewThread("octave", {"E:\\CODE\\Qt\\MouseAnalysis-Octave\\time_consume4.m"});
-    addNewThread("octave", {"E:\\CODE\\Qt\\MouseAnalysis-Octave\\time_consume5.m"});
-    addNewThread("octave", {"E:\\CODE\\Qt\\MouseAnalysis-Octave\\time_consume6.m"});
+
+    addNewThread("octave", {"step1.m"}, "E:\\CODE\\Qt\\MouseAnalysis\\build\\Desktop_Qt_5_15_2_MSVC2019_64bit-Debug\\data");
+    addNewThread("octave", {"step2.m"}, "E:\\CODE\\Qt\\MouseAnalysis\\build\\Desktop_Qt_5_15_2_MSVC2019_64bit-Debug\\data");
+    addNewThread("octave", {"step3.m"}, "E:\\CODE\\Qt\\MouseAnalysis\\build\\Desktop_Qt_5_15_2_MSVC2019_64bit-Debug\\data");
+    addNewThread("octave", {"time_consume4.m"}, "E:\\CODE\\Qt\\MouseAnalysis-Octave");
+    addNewThread("octave", {"time_consume5.m"}, "E:\\CODE\\Qt\\MouseAnalysis-Octave");
+    addNewThread("octave", {"time_consume6.m"}, "E:\\CODE\\Qt\\MouseAnalysis-Octave");
 
 
     // 开始按钮槽函数连接
@@ -120,13 +114,61 @@ MainWindow::MainWindow(QWidget *parent): QMainWindow(parent), ui(new Ui::MainWin
 
     // 初始化显示第一个步骤
     on_widgetContainerStep_1_clicked();
+
+    // QString filePath = "E:\\CODE\\Qt\\MouseAnalysis\\build\\Desktop_Qt_5_15_2_MSVC2019_64bit-Debug\\debug\\data\\points.txt"; // 替换为实际文件路径
+    // if (m_csvParser.parse(filePath))
+    // {
+    //     const QVector<QStringList>& csvData = m_csvParser.getData();
+    //     for (const QStringList& row : csvData)
+    //     {
+    //         qDebug() << row;
+    //     }
+    // }
 }
 
 
 MainWindow::~MainWindow()
 {
     delete ui;
+
+    // 先删除CommandProcess对象
+    foreach (const CommandProcess* constCmdProcess, m_cmdProcessList) {
+        constCmdProcess->terminate();
+
+        CommandProcess* cmdProcess = const_cast<CommandProcess*>(constCmdProcess); // 指针是不变的，但是CommandProcess只是普通new出来的，可以删
+        delete cmdProcess;
+    }
+
+
+    // 再停止并删除线程
+    foreach (const QThread* constThread, m_thdList) {
+        QThread* thread = const_cast<QThread*>(constThread); // 指针是不变的，但是thread只是普通new出来的，可以删
+        thread->quit(); // 请求线程退出
+        thread->wait(); // 等待线程真正退出
+        delete thread;
+    }
+
+
+    // 删除日志队列
+    foreach (const QQueue<QString>* logQueue, m_cmdLog) {
+        delete logQueue;
+    }
+
+    // 删除QWidget对象
+    delete m_widgetDataSetting_1;
+    delete m_widgetDataSetting_2;
+    delete m_widgetDataSetting_3;
+    delete m_widgetDataSetting_4;
+    delete m_widgetDataSetting_5;
+    delete m_widgetDataSetting_6;
+
+    // 删除QQuickWidget对象
+    delete m_qmlWidget;
+
+    // 删除ImageList对象
+    delete m_imageList;
 }
+
 
 void MainWindow::paintEvent(QPaintEvent *event)
 {
@@ -158,11 +200,11 @@ void MainWindow::changeCurrentDisplay(Step step)
 }
 
 
-void MainWindow::addNewThread(QString program, QStringList args)
+void MainWindow::addNewThread(QString program, QStringList args, QString workDirectory)
 {
     //创建进程用于运行分析代码
     QThread *thread = new QThread();
-    CommandProcess *process = new CommandProcess(program, args);
+    CommandProcess *process = new CommandProcess(program, args, workDirectory);
     QQueue<QString> *queue = new QQueue<QString>();
 
     qDebug() << thread << process << queue;
@@ -199,11 +241,30 @@ void MainWindow::on_textBrowserLogShow(QString str)
     ui->textBrowser->append(str);
 }
 
+void MainWindow::on_runButtonEndFinish()
+{
+    if(!m_cmdProcessList[m_currentDisplay]->isRunning())
+    {
+        ui->pushButtonRun->setText(tr("开始"));
+        qDebug() << "Cmd Finish, change button state: ";
+    }
+}
 
-void MainWindow::slotChange(Step currentStep)
+void MainWindow::on_runButtonEndError(QProcess::ProcessError err)
+{
+    if(!m_cmdProcessList[m_currentDisplay]->isRunning())
+    {
+        ui->pushButtonRun->setText(tr("开始"));
+        qDebug() << "Cmd Error, change button state: " ;
+    }
+}
+
+
+void MainWindow::slotStepChange(Step currentStep)
 {
     Step preDisplay = m_currentDisplay;
     changeCurrentDisplay(currentStep);
+    updateWidgetStepCheck(preDisplay, currentStep);
 
     // 清除输出，添加当前运行的log
     ui->textBrowser->clear();
@@ -213,9 +274,31 @@ void MainWindow::slotChange(Step currentStep)
     disconnect(m_cmdProcessList[preDisplay], &CommandProcess::resultReady, this, &MainWindow::on_textBrowserLogShow);
     connect(m_cmdProcessList[m_currentDisplay], &CommandProcess::resultReady, this, &MainWindow::on_textBrowserLogShow);
 
-    // 开始运行按钮槽函数的解绑与绑定
+    // 开始信号与后台程序解绑与绑定
     disconnect(this, &MainWindow::cmdStartRun, m_cmdProcessList[preDisplay], &CommandProcess::run);
     connect(this, &MainWindow::cmdStartRun, m_cmdProcessList[m_currentDisplay], &CommandProcess::run);
+
+    // 终止信号与后台程序解绑与绑定
+    disconnect(this, &MainWindow::cmdTerminate, m_cmdProcessList[preDisplay], &CommandProcess::terminate);
+    connect(this, &MainWindow::cmdTerminate, m_cmdProcessList[m_currentDisplay], &CommandProcess::terminate);
+
+    // 开始运行按钮槽函数的解绑与绑定,页面切换时初始化文字
+    disconnect(m_cmdProcessList[preDisplay], &CommandProcess::cmdFinish, this, &MainWindow::on_runButtonEndFinish);
+    connect(m_cmdProcessList[m_currentDisplay], &CommandProcess::cmdFinish, this, &MainWindow::on_runButtonEndFinish);
+
+    disconnect(m_cmdProcessList[preDisplay], &CommandProcess::cmdError, this, &MainWindow::on_runButtonEndError);
+    connect(m_cmdProcessList[m_currentDisplay], &CommandProcess::cmdError, this, &MainWindow::on_runButtonEndError);
+
+    if(m_cmdProcessList[m_currentDisplay]->isRunning())
+    {
+        ui->pushButtonRun->setProperty("run", true);
+        ui->pushButtonRun->setText(tr("暂停"));
+    }
+    else
+    {
+        ui->pushButtonRun->setProperty("run", false);
+        ui->pushButtonRun->setText(tr("开始"));
+    }
 
     // 图片列表显示的解绑与绑定
     disconnect(m_cmdProcessList[preDisplay], &CommandProcess::cmdFinish, this, &MainWindow::on_updateImageList);
@@ -225,6 +308,32 @@ void MainWindow::slotChange(Step currentStep)
 
     // 移除旧的控件
     // clearWidget(qobject_cast<QWidget*>(ui->groupBoxData));
+}
+
+
+void MainWindow::updateWidgetStepCheck(Step stepPre, Step stepCur)
+{
+    // 关闭之前的选中效果
+    switch(stepPre)
+    {
+    case STEP1: ui->widgetContainerStep_1->setChecked(false);break;
+    case STEP2: ui->widgetContainerStep_2->setChecked(false);break;
+    case STEP3: ui->widgetContainerStep_3->setChecked(false);break;
+    case STEP4: ui->widgetContainerStep_4->setChecked(false);break;
+    case STEP5: ui->widgetContainerStep_5->setChecked(false);break;
+    case STEP6: ui->widgetContainerStep_6->setChecked(false);break;
+    }
+
+    // 打开现在的选中效果
+    switch(stepCur)
+    {
+    case STEP1: ui->widgetContainerStep_1->setChecked(true);break;
+    case STEP2: ui->widgetContainerStep_2->setChecked(true);break;
+    case STEP3: ui->widgetContainerStep_3->setChecked(true);break;
+    case STEP4: ui->widgetContainerStep_4->setChecked(true);break;
+    case STEP5: ui->widgetContainerStep_5->setChecked(true);break;
+    case STEP6: ui->widgetContainerStep_6->setChecked(true);break;
+    }
 }
 
 
@@ -261,11 +370,29 @@ void MainWindow::initDataSettingPage1()
 
 
     // 每只小鼠的配准坐标
-    QLabel *labelPoint = new QLabel(tr("配准坐标"));
     QHBoxLayout *hLayoutForPoint = new QHBoxLayout();
+
+    QLabel *labelPoint = new QLabel(tr("配准坐标"));
+
+    QPushButton *pushButtonPointTXTImport = new QPushButton(tr("TXT 快速导入"));
+    pushButtonPointTXTImport->setToolTip(tr(
+        "一行对应一只个小鼠的坐标，以英文逗号隔开，行尾不要有标点符号。\n"
+        "格式：小鼠文件前缀名,X1,Y1,X2,Y2\n"
+        "示例（下面展示了 3 只小鼠的配准坐标）：\n"
+        "1-CON F 1,122,100,126,228\n"
+        "1-CON F 2,122,112,132,226\n"
+        "2-CON F 1,126,88,130,212\n"));
+
     QComboBox *comboBoxSelectMouse = new QComboBox();
     ComboxItemDelegate *delegate = new ComboxItemDelegate();
     comboBoxSelectMouse->setItemDelegate(delegate);
+    comboBoxSelectMouse->setPlaceholderText(tr("选择小鼠..."));
+
+    // 创建一个QLineEdit并设置占位符文本
+    QLineEdit *lineEdit = new QLineEdit();
+    lineEdit->setPlaceholderText("选择小鼠...");
+    lineEdit->setReadOnly(true);
+    comboBoxSelectMouse->setLineEdit(lineEdit);
 
     QLabel *labelPonintX1 = new QLabel(tr("X1:"));
     labelPonintX1->setAlignment(Qt::AlignRight);
@@ -295,35 +422,25 @@ void MainWindow::initDataSettingPage1()
     spinBoxPointY2->setRange(0, 10000);
     spinBoxPointY2->setValue(0);
 
-    hLayoutForPoint->addWidget(comboBoxSelectMouse, 4);
+    // 添加坐标输入框
     QGridLayout *gridPoint = new QGridLayout();
-    gridPoint->addWidget(labelPonintX1, 1, 1, 1, 1);
-    gridPoint->addWidget(spinBoxPointX1, 1, 2, 1, 2);
+    gridPoint->addWidget(comboBoxSelectMouse, 0, 0, 1, 6);
+    gridPoint->addWidget(pushButtonPointTXTImport, 0, 6, 1, 3);
+
+    gridPoint->addWidget(labelPonintX1, 1, 0, 1, 1);
+    gridPoint->addWidget(spinBoxPointX1, 1, 1, 1, 1);
+
+    gridPoint->addWidget(labelPonintY1, 1, 2, 1, 1);
+    gridPoint->addWidget(spinBoxPointY1, 1, 3, 1, 1);
 
     gridPoint->addWidget(labelPonintX2, 1, 4, 1, 1);
-    gridPoint->addWidget(spinBoxPointX2, 1, 5, 1, 2);
+    gridPoint->addWidget(spinBoxPointX2, 1, 5, 1, 1);
 
-    gridPoint->addWidget(labelPonintY1, 2, 1, 1, 1);
-    gridPoint->addWidget(spinBoxPointY1, 2, 2, 1, 2);
+    gridPoint->addWidget(labelPonintY2, 1, 6, 1, 1);
+    gridPoint->addWidget(spinBoxPointY2, 1, 7, 1, 1);
 
-    gridPoint->addWidget(labelPonintY2, 2, 4, 1, 1);
-    gridPoint->addWidget(spinBoxPointY2, 2, 5, 1, 2);
+    hLayoutForPoint->addLayout(gridPoint);
 
-    hLayoutForPoint->addLayout(gridPoint, 7);
-
-
-    // 数据选择框添加控件
-    grid->addWidget(labelDirectory, 1, 1);
-    grid->addLayout(hLayoutForDirectory, 1, 2);
-
-    grid->addWidget(labelMouseNum, 2, 1);
-    grid->addWidget(spinBoxMouseNum, 2, 2);
-
-    grid->addWidget(labelTifNum, 3, 1);
-    grid->addWidget(spinBoxTifNum, 3, 2);
-
-    grid->addWidget(labelPoint, 4, 1);
-    grid->addLayout(hLayoutForPoint, 4, 2);
 
     comboBoxSelectMouse->setDisabled(true);
     spinBoxMouseNum->setDisabled(true);
@@ -332,17 +449,14 @@ void MainWindow::initDataSettingPage1()
     spinBoxPointX2->setDisabled(true);
     spinBoxPointY1->setDisabled(true);
     spinBoxPointY2->setDisabled(true);
+    pushButtonPointTXTImport->setDisabled(true);
 
-    QPushButton *pushButtonProSelect = new QPushButton(tr("高级选择"));
-    pushButtonProSelect->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-    grid->addWidget(pushButtonProSelect, 5, 1, 1, 2);
-
-    // 添加控件到 groupBox
-    // ui->groupBoxData->setLayout(grid);
-    m_widgetDataSetting_1->setLayout(grid);
+    // QPushButton *pushButtonProSelect = new QPushButton(tr("高级选择"));
+    // pushButtonProSelect->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+    // grid->addWidget(pushButtonProSelect, 5, 1, 1, 2);
 
     // 选择文件目录，按照前缀来自动识别文件并分组
-    auto on_selectDirectory = [&, comboBoxSelectMouse, lineEditDirectory, spinBoxMouseNum, spinBoxTifNum, spinBoxPointX1, spinBoxPointX2, spinBoxPointY1, spinBoxPointY2](){
+    auto on_selectDirectory = [&, comboBoxSelectMouse, lineEditDirectory, spinBoxMouseNum, spinBoxTifNum, spinBoxPointX1, spinBoxPointX2, spinBoxPointY1, spinBoxPointY2, pushButtonPointTXTImport](){
         QString directory = QFileDialog::getExistingDirectory(
             nullptr,
             "Select Directory",
@@ -369,6 +483,7 @@ void MainWindow::initDataSettingPage1()
                 spinBoxPointX2->setDisabled(true);
                 spinBoxPointY1->setDisabled(true);
                 spinBoxPointY2->setDisabled(true);
+                pushButtonPointTXTImport->setDisabled(true);
                 return;
             }
             comboBoxSelectMouse->setDisabled(false);
@@ -378,6 +493,7 @@ void MainWindow::initDataSettingPage1()
             spinBoxPointX2->setDisabled(false);
             spinBoxPointY1->setDisabled(false);
             spinBoxPointY2->setDisabled(false);
+            pushButtonPointTXTImport->setDisabled(false);
 
             // 获取不带扩展名的文件名
             foreach (const QFileInfo &fileInfo, fileList)
@@ -422,6 +538,17 @@ void MainWindow::initDataSettingPage1()
                 }
             }
 
+            /********************************************************************************************/
+            /********************************************************************************************/
+            /********************************************************************************************/
+            foreach (auto key, m_groupedFiles.keys())  // 目前仅支持一个小鼠3个tif
+                while(m_groupedFiles[key].length()>3)  // 目前仅支持一个小鼠3个tif
+                {                                      // 目前仅支持一个小鼠3个tif
+                    m_groupedFiles[key].pop_back();    // 目前仅支持一个小鼠3个tif
+                }                                      // 目前仅支持一个小鼠3个tif
+            /********************************************************************************************/
+            /********************************************************************************************/
+            /********************************************************************************************/
             // qDebug() << "groupedFiles" << groupedFiles;
 
 
@@ -460,12 +587,11 @@ void MainWindow::initDataSettingPage1()
                 variantMapPoint.insert(it.key(), QVariant::fromValue(points));
             }
 
-            m_config[m_currentDisplay]["input_files"] = variantMapInputFiles;
-            m_config[m_currentDisplay]["point"] = variantMapPoint;
-            m_config[m_currentDisplay]["input_file_directory"] = directory;
-            m_config[m_currentDisplay]["output_directory"] = ".\\data\\step1";
-            m_config[m_currentDisplay]["mouse_count"] = m_groupedFiles.count();
-            m_config[m_currentDisplay]["files_per_mouse"] = *num.begin();
+            m_config[STEP1]["input_files"] = variantMapInputFiles;
+            m_config[STEP1]["point"] = variantMapPoint;
+            m_config[STEP1]["input_file_directory"] = directory;
+            m_config[STEP1]["mouse_count"] = m_groupedFiles.count();
+            m_config[STEP1]["files_per_mouse"] = *num.begin();
 
         } else {
             qDebug() << "No directory selected.";
@@ -477,6 +603,7 @@ void MainWindow::initDataSettingPage1()
             spinBoxPointX2->setDisabled(true);
             spinBoxPointY1->setDisabled(true);
             spinBoxPointY2->setDisabled(true);
+            pushButtonPointTXTImport->setDisabled(true);
         }
     };
 
@@ -485,6 +612,8 @@ void MainWindow::initDataSettingPage1()
         if(m_groupedFilesPoint.contains(currentMouse))
         {
             m_groupedFilesPoint[currentMouse][0][0] = x;
+
+            // 检查4个点是否都设置了
             for (int i = 0; i < m_groupedFilesPoint[currentMouse].size(); ++i) {
                 for (int j = 0; j < m_groupedFilesPoint[currentMouse][i].size(); ++j) {
                     if(m_groupedFilesPoint[currentMouse][i][j] == -1)
@@ -501,6 +630,8 @@ void MainWindow::initDataSettingPage1()
         if(m_groupedFilesPoint.contains(currentMouse))
         {
             m_groupedFilesPoint[currentMouse][0][1] = x;
+
+            // 检查4个点是否都设置了
             for (int i = 0; i < m_groupedFilesPoint[currentMouse].size(); ++i) {
                 for (int j = 0; j < m_groupedFilesPoint[currentMouse][i].size(); ++j) {
                     if(m_groupedFilesPoint[currentMouse][i][j] == -1)
@@ -517,6 +648,8 @@ void MainWindow::initDataSettingPage1()
         if(m_groupedFilesPoint.contains(currentMouse))
         {
             m_groupedFilesPoint[currentMouse][1][0] = x;
+
+            // 检查4个点是否都设置了
             for (int i = 0; i < m_groupedFilesPoint[currentMouse].size(); ++i) {
                 for (int j = 0; j < m_groupedFilesPoint[currentMouse][i].size(); ++j) {
                     if(m_groupedFilesPoint[currentMouse][i][j] == -1)
@@ -534,6 +667,7 @@ void MainWindow::initDataSettingPage1()
         {
             m_groupedFilesPoint[currentMouse][1][1] = x;
 
+            // 检查4个点是否都设置了
             for (int i = 0; i < m_groupedFilesPoint[currentMouse].size(); ++i) {
                 for (int j = 0; j < m_groupedFilesPoint[currentMouse][i].size(); ++j) {
                     if(m_groupedFilesPoint[currentMouse][i][j] == -1)
@@ -569,24 +703,238 @@ void MainWindow::initDataSettingPage1()
         }
     };
 
+    auto on_buttonTXTImport = [&, comboBoxSelectMouse]()
+    {
+        QString fullPath = QFileDialog::getOpenFileName(
+            nullptr,
+            tr("选择导入TXT配准坐标"),
+            "E:\\CODE\\Qt\\MouseAnalysis\\build\\Desktop_Qt_5_15_2_MSVC2019_64bit-Debug\\data",
+            "Text Files (*.txt);;All Files (*)"
+            );
+
+        if (fullPath.isEmpty())
+        {
+            QMessageBox::critical(nullptr, "错误", QString("未选择文件！"));
+            return;
+        }
+
+        if(m_csvParser.parse(fullPath))
+        {
+            const QVector<QStringList> &csvData = m_csvParser.getData();
+            foreach(const auto &list, csvData)
+            {
+                auto key = list[0];
+                if(!m_groupedFilesPoint.contains(key))  // 没有这个键，退出解析
+                {
+                    QMessageBox::critical(nullptr, "错误", QString("文件名错误: %1\n%2").arg(key, list.join(',')));
+                    return;
+                }
+                if(list.size() != 5)   // 一行应该有文件名加四个数字，不满足，退出解析
+                {
+                    QMessageBox::critical(nullptr, "错误", QString("数据量错误: %1\n应为：文件名,X1,Y1,X2,Y2").arg(list.join(',')));
+                    return;
+                }
+                bool ok;
+                m_groupedFilesPoint[key][0][0] = list[1].toInt(&ok);
+                if(!ok)
+                {
+                    m_groupedFilesPoint[key][0][0] = -1;
+                    QMessageBox::critical(nullptr, "错误", QString("坐标格式错误，无法转换为数字: %1\n%2").arg(list[1], list.join(',')));
+                    return;
+                }
+                m_groupedFilesPoint[key][0][1] = list[2].toInt(&ok);
+                if(!ok)
+                {
+                    m_groupedFilesPoint[key][0][1] = -1;
+                    QMessageBox::critical(nullptr, "错误", QString("坐标格式错误，无法转换为数字: %1\n%2").arg(list[2], list.join(',')));
+                    return;
+                }
+                m_groupedFilesPoint[key][1][0] = list[3].toInt(&ok);
+                if(!ok)
+                {
+                    m_groupedFilesPoint[key][1][0] = -1;
+                    QMessageBox::critical(nullptr, "错误", QString("坐标格式错误，无法转换为数字: %1\n%2").arg(list[3], list.join(',')));
+                    return;
+                }
+                m_groupedFilesPoint[key][1][1] = list[4].toInt(&ok);
+                if(!ok)
+                {
+                    m_groupedFilesPoint[key][1][1] = -1;
+                    QMessageBox::critical(nullptr, "错误", QString("坐标格式错误，无法转换为数字: %1\n%2").arg(list[4], list.join(',')));
+                    return;
+                }
+
+                // 检查4个点是否都设置了，更新combox选择框
+                int index = comboBoxSelectMouse->findText(key);
+                if(m_groupedFilesPoint[key][0][0]+m_groupedFilesPoint[key][0][1]+m_groupedFilesPoint[key][1][0]+m_groupedFilesPoint[key][1][1]!= -4)
+                {
+                    comboBoxSelectMouse->setItemData(index, true);
+                    comboBoxSelectMouse->setCurrentIndex(index);
+                }
+                else
+                {
+                    comboBoxSelectMouse->setItemData(index, false);
+                }
+            }
+        }
+
+    };
+
     connect(pushButtonDirectory, &QPushButton::clicked, this, on_selectDirectory);
     connect(spinBoxPointX1, QOverload<int>::of (&QSpinBox::valueChanged), this, on_pointX1Change);
     connect(spinBoxPointY1, QOverload<int>::of (&QSpinBox::valueChanged), this, on_pointY1Change);
     connect(spinBoxPointX2, QOverload<int>::of (&QSpinBox::valueChanged), this, on_pointX2Change);
     connect(spinBoxPointY2, QOverload<int>::of (&QSpinBox::valueChanged), this, on_pointY2Change);
     connect(comboBoxSelectMouse, &QComboBox::currentTextChanged, this, on_comboxSelectChange);
+    connect(pushButtonPointTXTImport, &QPushButton::clicked, this, on_buttonTXTImport);
+
+    // 数据选择框添加控件
+    grid->addWidget(labelDirectory, 1, 1);
+    grid->addLayout(hLayoutForDirectory, 1, 2);
+
+    grid->addWidget(labelMouseNum, 2, 1);
+    grid->addWidget(spinBoxMouseNum, 2, 2);
+
+    grid->addWidget(labelTifNum, 3, 1);
+    grid->addWidget(spinBoxTifNum, 3, 2);
+
+    grid->addWidget(labelPoint, 4, 1);
+    grid->addLayout(hLayoutForPoint, 4, 2);
+    m_widgetDataSetting_1->setLayout(grid);
 }
 
 
 void MainWindow::initDataSettingPage2()
 {
+    QGridLayout *grid = new QGridLayout();
 
+    // 对照组
+    QLabel *labelCON = new QLabel(tr("对照组 mat 文件"));
+    QLineEdit *lineEditCON = new QLineEdit();
+    lineEditCON->setReadOnly(true);
+    QPushButton *pushButtonSelectCON = new QPushButton(tr("选择"));
+
+    // 突变组
+    QLabel *labelMUT = new QLabel(tr("突变组 mat 文件"));
+    QLineEdit *lineEditMUT = new QLineEdit();
+    lineEditMUT->setReadOnly(true);
+    QPushButton *pushButtonSelectMUT = new QPushButton(tr("选择"));
+
+    m_config[STEP2]["folder_path"] = "./";
+
+    auto on_selectCONFile = [&, lineEditCON](){
+        QString fullPath = QFileDialog::getOpenFileName(
+            nullptr,
+            tr("选择导入TXT配准坐标"),
+            "E:\\CODE\\Qt\\MouseAnalysis\\build\\Desktop_Qt_5_15_2_MSVC2019_64bit-Debug\\data",
+            "Text Files (*.mat);;All Files (*)"
+            );
+
+        if (fullPath.isEmpty())
+        {
+            QMessageBox::critical(nullptr, "错误", QString("未选择文件！"));
+            return;
+        }
+
+        lineEditCON->setText(fullPath);
+
+        QMap<QString, QString> map;
+        if(m_config[STEP2].contains("input_files"))  // 存在，以前写入过，更新
+            map = m_config[STEP2]["input_files"].value<QMap<QString, QString>>();
+        else                                         // 不存在，准备插入
+            map.clear();
+
+        map["CON"] = fullPath;
+        m_config[STEP2]["input_files"] = QVariant::fromValue(map);
+    };
+
+    auto on_selectMUTFile = [&, lineEditMUT](){
+        QString fullPath = QFileDialog::getOpenFileName(
+            nullptr,
+            tr("选择导入 mat 文件"),
+            "E:\\CODE\\Qt\\MouseAnalysis\\build\\Desktop_Qt_5_15_2_MSVC2019_64bit-Debug\\data",
+            "Text Files (*.mat);;All Files (*)"
+            );
+
+        if (fullPath.isEmpty())
+        {
+            QMessageBox::critical(nullptr, "错误", QString("未选择文件！"));
+            return;
+        }
+
+        lineEditMUT->setText(fullPath);
+
+        QMap<QString, QString> map;
+        if(m_config[STEP2].contains("input_files"))  // 存在，以前写入过，更新
+            map = m_config[STEP2]["input_files"].value<QMap<QString, QString>>();
+        else                                         // 不存在，准备插入
+            map.clear();
+
+        map["MUT"] = fullPath;
+        m_config[STEP2]["input_files"] = QVariant::fromValue(map);
+    };
+
+    connect(pushButtonSelectCON, &QPushButton::clicked, this, on_selectCONFile);
+    connect(pushButtonSelectMUT, &QPushButton::clicked, this, on_selectMUTFile);
+
+    grid->addWidget(labelCON, 0, 0);
+    grid->addWidget(lineEditCON, 0, 1);
+    grid->addWidget(pushButtonSelectCON, 0, 2);
+
+    grid->addWidget(labelMUT, 1, 0);
+    grid->addWidget(lineEditMUT, 1, 1);
+    grid->addWidget(pushButtonSelectMUT, 1, 2);
+
+    grid->setAlignment(Qt::AlignTop);
+    m_widgetDataSetting_2->setLayout(grid);
 }
 
 
 void MainWindow::initDataSettingPage3()
 {
+    QGridLayout *grid = new QGridLayout();
 
+    // 对照组
+    QLabel *labelCON = new QLabel(tr(" mat 文件"));
+    QLineEdit *lineEditCON = new QLineEdit();
+    lineEditCON->setReadOnly(true);
+    QPushButton *pushButtonSelectCON = new QPushButton(tr("选择"));
+
+
+    auto on_selectCONFile = [&, lineEditCON](){
+        QString fullPath = QFileDialog::getOpenFileName(
+            nullptr,
+            tr("选择导入 mat 文件"),
+            "E:\\CODE\\Qt\\MouseAnalysis\\build\\Desktop_Qt_5_15_2_MSVC2019_64bit-Debug\\data",
+            "Text Files (*.mat);;All Files (*)"
+            );
+
+        if (fullPath.isEmpty())
+        {
+            QMessageBox::critical(nullptr, "错误", QString("未选择文件！"));
+            return;
+        }
+
+        lineEditCON->setText(fullPath);
+
+        QMap<QString, QString> map;
+        if(m_config[STEP3].contains("input_files"))  // 存在，以前写入过，更新
+            map = m_config[STEP3]["input_files"].value<QMap<QString, QString>>();
+        else                                         // 不存在，准备插入
+            map.clear();
+
+        map["CON"] = fullPath;
+        m_config[STEP3]["input_files"] = QVariant::fromValue(map);
+    };
+
+    connect(pushButtonSelectCON, &QPushButton::clicked, this, on_selectCONFile);
+
+    grid->addWidget(labelCON, 0, 0);
+    grid->addWidget(lineEditCON, 0, 1);
+    grid->addWidget(pushButtonSelectCON, 0, 2);
+
+    grid->setAlignment(Qt::AlignTop);
+    m_widgetDataSetting_3->setLayout(grid);
 }
 
 
@@ -612,7 +960,8 @@ void MainWindow::initDataSettingPage6()
 
 void MainWindow::on_widgetContainerStep_1_clicked()
 {
-    slotChange(Step::STEP1);
+    slotStepChange(Step::STEP1);
+
     m_layoutDataSetting->setCurrentIndex(m_currentDisplay);
     m_imageList->setImgPath(m_resultPath[m_currentDisplay]);
 
@@ -621,7 +970,7 @@ void MainWindow::on_widgetContainerStep_1_clicked()
 
 void MainWindow::on_widgetContainerStep_2_clicked()
 {
-    slotChange(Step::STEP2);
+    slotStepChange(Step::STEP2);
     m_layoutDataSetting->setCurrentIndex(m_currentDisplay);
     m_imageList->setImgPath(m_resultPath[m_currentDisplay]);
 }
@@ -629,7 +978,7 @@ void MainWindow::on_widgetContainerStep_2_clicked()
 
 void MainWindow::on_widgetContainerStep_3_clicked()
 {
-    slotChange(Step::STEP3);
+    slotStepChange(Step::STEP3);
     m_layoutDataSetting->setCurrentIndex(m_currentDisplay);
     m_imageList->setImgPath(m_resultPath[m_currentDisplay]);
 }
@@ -637,7 +986,7 @@ void MainWindow::on_widgetContainerStep_3_clicked()
 
 void MainWindow::on_widgetContainerStep_4_clicked()
 {
-    slotChange(Step::STEP4);
+    slotStepChange(Step::STEP4);
     m_layoutDataSetting->setCurrentIndex(m_currentDisplay);
     m_imageList->setImgPath(m_resultPath[m_currentDisplay]);
 }
@@ -645,7 +994,7 @@ void MainWindow::on_widgetContainerStep_4_clicked()
 
 void MainWindow::on_widgetContainerStep_5_clicked()
 {
-    slotChange(Step::STEP5);
+    slotStepChange(Step::STEP5);
     m_layoutDataSetting->setCurrentIndex(m_currentDisplay);
     m_imageList->setImgPath(m_resultPath[m_currentDisplay]);
 }
@@ -653,7 +1002,7 @@ void MainWindow::on_widgetContainerStep_5_clicked()
 
 void MainWindow::on_widgetContainerStep_6_clicked()
 {
-    slotChange(Step::STEP6);
+    slotStepChange(Step::STEP6);
     m_layoutDataSetting->setCurrentIndex(m_currentDisplay);
     m_imageList->setImgPath(m_resultPath[m_currentDisplay]);
 }
@@ -661,77 +1010,131 @@ void MainWindow::on_widgetContainerStep_6_clicked()
 
 void MainWindow::on_processStart()
 {
-    QString savePath = QDir::cleanPath(QDir::currentPath() + '/' + "/debug/data" + "/config11111.json");
-    m_configSaver.saveConfig(m_config, savePath);
+    QString configSavePath = QDir::cleanPath(QDir::currentPath() + "/data/config.json");
 
-    switch (m_currentDisplay) {
-    case Step::STEP1:  // 检查 mouse_count files_per_mouse input_files point output_directory 是否已经设置
+    qDebug() << QString("Process isRunning:(%1)").arg(m_cmdProcessList[m_currentDisplay]->isRunning());
+    if(m_cmdProcessList[m_currentDisplay]->isRunning())  // 正在跑,此时功能是终止
+    {
+        emit cmdTerminate();
+        qDebug() << "Send terminate singal to process";
+        ui->pushButtonRun->setText(tr("开始"));
+        return;
+    }
+    // 没有跑,此时功能是开始,开始下面的检查输入
 
-        if(!m_config[m_currentDisplay].contains("input_file_directory"))
+    switch (m_currentDisplay)
+    {
+        case Step::STEP1:  // 检查 mouse_count files_per_mouse input_files point output_directory 是否已经设置
         {
-            QMessageBox::warning(nullptr, "错误", "未设置小鼠TIF文件路径！",  QMessageBox::Ok,QMessageBox::Ok);
-            return;
-        }
-        if(!m_config[m_currentDisplay].contains("mouse_count"))
-        {
-            QMessageBox::warning(nullptr, "错误", "未设置小鼠数量！",  QMessageBox::Ok,QMessageBox::Ok);
-            return;
-        }
-        if(!m_config[m_currentDisplay].contains("files_per_mouse"))
-        {
-            QMessageBox::warning(nullptr, "错误", "未设置每只小鼠TIF文件数量！",  QMessageBox::Ok,QMessageBox::Ok);
-            return;
-        }
-        foreach(const auto key, m_groupedFilesPoint.keys())
-        {
-            for(int i = 0; i < m_groupedFilesPoint[key].size(); ++i)
-                for(int j = 0; j < m_groupedFilesPoint[key][i].size(); ++j)
-                {
-                    if(m_groupedFilesPoint[key][i][j] == -1)
+            if(!m_config[STEP1].contains("input_file_directory"))
+            {
+                QMessageBox::warning(nullptr, "错误", "未设置小鼠TIF文件路径！",  QMessageBox::Ok,QMessageBox::Ok);
+                return;
+            }
+            if(!m_config[STEP1].contains("mouse_count"))
+            {
+                QMessageBox::warning(nullptr, "错误", "未设置小鼠数量！",  QMessageBox::Ok,QMessageBox::Ok);
+                return;
+            }
+            if(!m_config[STEP1].contains("files_per_mouse"))
+            {
+                QMessageBox::warning(nullptr, "错误", "未设置每只小鼠TIF文件数量！",  QMessageBox::Ok,QMessageBox::Ok);
+                return;
+            }
+            foreach(const auto key, m_groupedFilesPoint.keys())
+            {
+                for(int i = 0; i < m_groupedFilesPoint[key].size(); ++i)
+                    for(int j = 0; j < m_groupedFilesPoint[key][i].size(); ++j)
                     {
-                        QMessageBox::warning(nullptr, "错误", "每只小鼠的配准坐标都需要设置！",  QMessageBox::Ok,QMessageBox::Ok);
-                        return;
+                        if(m_groupedFilesPoint[key][i][j] == -1)
+                        {
+                            QMessageBox::warning(nullptr, "错误", "每只小鼠的配准坐标都需要设置！",  QMessageBox::Ok,QMessageBox::Ok);
+                            return;
+                        }
                     }
-                }
+            }
+
+            m_config[STEP1]["point"] = QVariant::fromValue(m_groupedFilesPoint);
+
+            m_configSaver.saveConfig(m_config, configSavePath);
+
+            emit cmdStartRun();
+            ui->pushButtonRun->setText(tr("暂停"));
+            break;
         }
 
-        foreach (auto key, m_groupedFilesPoint.keys()) {
-            m_groupedFilesPoint[key].pop_back();
+        case Step::STEP2:
+        {
+            if(!m_config[STEP2].contains("input_files"))
+            {
+                QMessageBox::warning(nullptr, "错误", "未选择 mat 文件！",  QMessageBox::Ok,QMessageBox::Ok);
+                return;
+            }
+
+            QMap<QString, QString> map = m_config[STEP2]["input_files"].value<QMap<QString, QString>>();
+
+            if(!map.contains("CON"))
+            {
+                QMessageBox::warning(nullptr, "错误", "未选择对照组 mat 文件！",  QMessageBox::Ok,QMessageBox::Ok);
+                return;
+            }
+            if(!map.contains("MUT"))
+            {
+                QMessageBox::warning(nullptr, "错误", "未选择突变组 mat 文件！",  QMessageBox::Ok,QMessageBox::Ok);
+                return;
+            }
+
+            m_configSaver.saveConfig(m_config, configSavePath);
+
+            emit cmdStartRun();
+            break;
         }
-        m_config[m_currentDisplay]["point"] = QVariant::fromValue(m_groupedFilesPoint);
 
-        m_configSaver.saveConfig(m_config, QDir::cleanPath(QDir::currentPath() + '/' + "/debug/data" + "/config11111.json"));
+        case Step::STEP3:
+        {
+            if(!m_config[STEP3].contains("input_files"))
+            {
+                QMessageBox::warning(nullptr, "错误", "未选择 mat 文件！",  QMessageBox::Ok,QMessageBox::Ok);
+                return;
+            }
 
-        emit cmdStartRun();
-        break;
+            QMap<QString, QString> map = m_config[STEP3]["input_files"].value<QMap<QString, QString>>();
+            if(!map.contains("CON"))
+            {
+                QMessageBox::warning(nullptr, "错误", "未选择 mat 文件！",  QMessageBox::Ok,QMessageBox::Ok);
+                return;
+            }
 
-    case Step::STEP2:
+            m_configSaver.saveConfig(m_config, configSavePath);
 
-        emit cmdStartRun();
-        break;
+            emit cmdStartRun();
+            ui->pushButtonRun->setText(tr("暂停"));
+            break;
+        }
 
-    case Step::STEP3:
+        case Step::STEP4:
+        {
 
-        emit cmdStartRun();
-        break;
+            emit cmdStartRun();
+            ui->pushButtonRun->setText(tr("暂停"));
+            break;
+        }
 
-    case Step::STEP4:
+        case Step::STEP5:
+        {
 
-        emit cmdStartRun();
-        break;
+            emit cmdStartRun();
+            ui->pushButtonRun->setText(tr("暂停"));
+            break;
+        }
 
-    case Step::STEP5:
+        case Step::STEP6:
+        {
 
-        emit cmdStartRun();
-        break;
-
-    case Step::STEP6:
-
-        emit cmdStartRun();
-        break;
-
-    default:
-        break;
+            emit cmdStartRun();
+            ui->pushButtonRun->setText(tr("暂停"));
+            break;
+        }
     }
 }
 

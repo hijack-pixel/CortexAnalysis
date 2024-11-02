@@ -73,6 +73,12 @@
          </property>
          <item>
           <widget class="ClickableWidget" name="widgetContainerStep_1" native="true">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Preferred" vsizetype="Minimum">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
            <property name="minimumSize">
             <size>
              <width>70</width>
@@ -97,10 +103,16 @@
             </property>
             <item>
              <widget class="QWidget" name="widgetIconStep_1" native="true">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
               <property name="minimumSize">
                <size>
                 <width>0</width>
-                <height>0</height>
+                <height>50</height>
                </size>
               </property>
              </widget>
@@ -108,10 +120,24 @@
             <item>
              <widget class="QLabel" name="label_3">
               <property name="sizePolicy">
-               <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+               <sizepolicy hsizetype="Preferred" vsizetype="Minimum">
                 <horstretch>0</horstretch>
                 <verstretch>0</verstretch>
                </sizepolicy>
+              </property>
+              <property name="minimumSize">
+               <size>
+                <width>0</width>
+                <height>10</height>
+               </size>
+              </property>
+              <property name="font">
+               <font>
+                <pointsize>9</pointsize>
+               </font>
+              </property>
+              <property name="styleSheet">
+               <string notr="true">font-size: 9pt;</string>
               </property>
               <property name="text">
                <string>成像预览</string>
@@ -126,6 +152,12 @@
          </item>
          <item>
           <widget class="ClickableWidget" name="widgetContainerStep_2" native="true">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Preferred" vsizetype="Minimum">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
            <property name="minimumSize">
             <size>
              <width>70</width>
@@ -149,10 +181,32 @@
              <number>5</number>
             </property>
             <item>
-             <widget class="QWidget" name="widgetIconStep_2" native="true"/>
+             <widget class="QWidget" name="widgetIconStep_2" native="true">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+              <property name="minimumSize">
+               <size>
+                <width>0</width>
+                <height>50</height>
+               </size>
+              </property>
+             </widget>
             </item>
             <item>
              <widget class="QLabel" name="label_6">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Preferred" vsizetype="Minimum">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+              <property name="styleSheet">
+               <string notr="true">font-size: 9pt;</string>
+              </property>
               <property name="text">
                <string>成像配准</string>
               </property>
@@ -166,6 +220,12 @@
          </item>
          <item>
           <widget class="ClickableWidget" name="widgetContainerStep_3" native="true">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Preferred" vsizetype="Minimum">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
            <property name="minimumSize">
             <size>
              <width>70</width>
@@ -189,10 +249,32 @@
              <number>5</number>
             </property>
             <item>
-             <widget class="QWidget" name="widgetIconStep_3" native="true"/>
+             <widget class="QWidget" name="widgetIconStep_3" native="true">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+              <property name="minimumSize">
+               <size>
+                <width>0</width>
+                <height>50</height>
+               </size>
+              </property>
+             </widget>
             </item>
             <item>
              <widget class="QLabel" name="label_8">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Preferred" vsizetype="Minimum">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+              <property name="styleSheet">
+               <string notr="true">font-size: 9pt;</string>
+              </property>
               <property name="text">
                <string>时序相关性</string>
               </property>
@@ -206,6 +288,12 @@
          </item>
          <item>
           <widget class="ClickableWidget" name="widgetContainerStep_4" native="true">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Preferred" vsizetype="Minimum">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
            <property name="minimumSize">
             <size>
              <width>70</width>
@@ -229,10 +317,32 @@
              <number>5</number>
             </property>
             <item>
-             <widget class="QWidget" name="widgetIconStep_4" native="true"/>
+             <widget class="QWidget" name="widgetIconStep_4" native="true">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+              <property name="minimumSize">
+               <size>
+                <width>0</width>
+                <height>50</height>
+               </size>
+              </property>
+             </widget>
             </item>
             <item>
              <widget class="QLabel" name="label_9">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Preferred" vsizetype="Minimum">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+              <property name="styleSheet">
+               <string notr="true">font-size: 9pt;</string>
+              </property>
               <property name="text">
                <string>控件连通性</string>
               </property>
@@ -246,6 +356,12 @@
          </item>
          <item>
           <widget class="ClickableWidget" name="widgetContainerStep_5" native="true">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Preferred" vsizetype="Minimum">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
            <property name="minimumSize">
             <size>
              <width>70</width>
@@ -269,10 +385,32 @@
              <number>5</number>
             </property>
             <item>
-             <widget class="QWidget" name="widgetIconStep_5" native="true"/>
+             <widget class="QWidget" name="widgetIconStep_5" native="true">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+              <property name="minimumSize">
+               <size>
+                <width>0</width>
+                <height>50</height>
+               </size>
+              </property>
+             </widget>
             </item>
             <item>
              <widget class="QLabel" name="label_11">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Preferred" vsizetype="Minimum">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+              <property name="styleSheet">
+               <string notr="true">font-size: 9pt;</string>
+              </property>
               <property name="text">
                <string>网络图谱</string>
               </property>
@@ -286,6 +424,12 @@
          </item>
          <item>
           <widget class="ClickableWidget" name="widgetContainerStep_6" native="true">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Preferred" vsizetype="Minimum">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
            <property name="minimumSize">
             <size>
              <width>70</width>
@@ -309,10 +453,37 @@
              <number>5</number>
             </property>
             <item>
-             <widget class="QWidget" name="widgetIconStep_6" native="true"/>
+             <widget class="QWidget" name="widgetIconStep_6" native="true">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+              <property name="minimumSize">
+               <size>
+                <width>0</width>
+                <height>50</height>
+               </size>
+              </property>
+             </widget>
             </item>
             <item>
              <widget class="QLabel" name="label_13">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Preferred" vsizetype="Minimum">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+              <property name="font">
+               <font>
+                <pointsize>9</pointsize>
+               </font>
+              </property>
+              <property name="styleSheet">
+               <string notr="true">font-size: 9pt;</string>
+              </property>
               <property name="text">
                <string>功率谱分析</string>
               </property>
@@ -409,19 +580,6 @@
                  </item>
                 </layout>
                </item>
-               <item>
-                <spacer name="verticalSpacer">
-                 <property name="orientation">
-                  <enum>Qt::Orientation::Vertical</enum>
-                 </property>
-                 <property name="sizeHint" stdset="0">
-                  <size>
-                   <width>20</width>
-                   <height>40</height>
-                  </size>
-                 </property>
-                </spacer>
-               </item>
               </layout>
              </widget>
             </item>
@@ -482,23 +640,30 @@
                   </property>
                   <layout class="QHBoxLayout" name="horizontalLayout_13">
                    <item>
-                    <widget class="QPushButton" name="pushButtonRun">
-                     <property name="sizePolicy">
-                      <sizepolicy hsizetype="Minimum" vsizetype="Minimum">
-                       <horstretch>0</horstretch>
-                       <verstretch>0</verstretch>
-                      </sizepolicy>
-                     </property>
-                     <property name="maximumSize">
-                      <size>
-                       <width>80</width>
-                       <height>80</height>
-                      </size>
-                     </property>
-                     <property name="text">
-                      <string>开始</string>
-                     </property>
-                    </widget>
+                    <layout class="QVBoxLayout" name="verticalLayout" stretch="1">
+                     <item>
+                      <widget class="QPushButton" name="pushButtonRun">
+                       <property name="sizePolicy">
+                        <sizepolicy hsizetype="Minimum" vsizetype="Minimum">
+                         <horstretch>0</horstretch>
+                         <verstretch>0</verstretch>
+                        </sizepolicy>
+                       </property>
+                       <property name="maximumSize">
+                        <size>
+                         <width>80</width>
+                         <height>80</height>
+                        </size>
+                       </property>
+                       <property name="styleSheet">
+                        <string notr="true">font-size: 12pt;</string>
+                       </property>
+                       <property name="text">
+                        <string>开始</string>
+                       </property>
+                      </widget>
+                     </item>
+                    </layout>
                    </item>
                    <item>
                     <widget class="QTextBrowser" name="textBrowser">

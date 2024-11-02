@@ -21,8 +21,8 @@ public:
     using QPropertyAnimation::QPropertyAnimation;
 
     //动画播放时值会改变，每次都会更新其Value
-    void updateCurrentValue(const QVariant &value)override{
-
+    void updateCurrentValue(const QVariant &value) override
+    {
         auto color = value.value<QColor>();
         // qDebug() << color;
 
@@ -37,6 +37,7 @@ public:
 };
 
 
+
 /**
  * @brief The ClickableWidget class
  * 继承 QWidget，实现可点击的 widget，添加动画效果。
@@ -47,8 +48,22 @@ class ClickableWidget : public QWidget
 public:
     explicit ClickableWidget(QWidget *parent = nullptr);
 
+
 signals:
     void clicked();
+
+public slots:
+    /**
+     * @brief setChecked  设置widget是否选中,亦即是否点击了.
+     * @param state       点击了设为true
+     */
+    void setChecked(bool state);
+
+    /**
+     * @brief updateAnimationState 根据选中状态决定是否循环动画
+     */
+    void updateAnimationState();
+
 
 protected:
     void enterEvent(QEvent *event) override;
@@ -61,6 +76,10 @@ protected:
 
 private:
     StyleSheetAnimation *m_animation;
+
+    StyleSheetAnimation *m_animationChecked;
+
+    bool m_checked = false;  //设置是否选中
 
     QColor m_color1 =  QColor(7,208,255, 200);
     QColor m_color2 =  QColor(231,80,229, 200);

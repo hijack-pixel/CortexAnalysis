@@ -20,22 +20,84 @@ QString ConfigSaver::stepToString(Step step) {
 
 // 递归函数将QVariant转换为QJsonValue
 QJsonValue ConfigSaver::variantToJsonValue(const QVariant &variant) {
-    switch (variant.type()) {
-    case QVariant::Map: {
+    switch (variant.type())
+    {
+    case QVariant::Map:
+    {
         QJsonObject jsonObject;
         QVariantMap map = variant.toMap();
-        for (auto it = map.constBegin(); it != map.constEnd(); ++it) {
+        for (auto it = map.constBegin(); it != map.constEnd(); ++it)
+        {
             jsonObject[it.key()] = variantToJsonValue(it.value());
         }
         return QJsonValue(jsonObject);
     }
-    case QVariant::List: {
+    case QVariant::List:
+    {
         QJsonArray jsonArray;
         QVariantList list = variant.toList();
-        for (const QVariant &item : list) {
+        for (const QVariant &item : list)
+        {
             jsonArray.append(variantToJsonValue(item));
         }
         return QJsonValue(jsonArray);
+    }
+    // 添加对QMap<QString, QList<QString>>的处理
+    case QVariant::UserType:
+    {
+        if (variant.canConvert<QMap<QString, QList<QString>>>())
+        {
+            QJsonObject jsonObject;
+            QMap<QString, QList<QString>> map = variant.value<QMap<QString, QList<QString>>>();
+            for (auto it = map.constBegin(); it != map.constEnd(); ++it)
+            {
+                QJsonArray jsonArray;
+                for (const QString &str : it.value())
+                {
+                    jsonArray.append(str);
+                }
+                jsonObject[it.key()] = jsonArray;
+            }
+            return QJsonValue(jsonObject);
+        }
+        // 添加对QMap<QString, QVector<QVector<int>>>的处理
+        else if (variant.canConvert<QMap<QString, QVector<QVector<int>>>>())
+        {
+            QJsonObject jsonObject;
+            QMap<QString, QVector<QVector<int>>> map = variant.value<QMap<QString, QVector<QVector<int>>>>();
+            for (auto it = map.constBegin(); it != map.constEnd(); ++it)
+            {
+                QJsonArray jsonArray;
+                for (const QVector<int> &vector : it.value())
+                {
+                    QJsonArray intArray;
+                    for (int i : vector)
+                    {
+                        intArray.append(i);
+                    }
+                    jsonArray.append(intArray);
+                }
+                jsonObject[it.key()] = jsonArray;
+            }
+            return QJsonValue(jsonObject);
+        }
+        // 添加对QMap<QString, QString>的处理
+        else if (variant.canConvert<QMap<QString, QString>>())
+        {
+            QJsonObject jsonObject;
+            QMap<QString, QString> map = variant.value<QMap<QString, QString>>();
+            for (auto it = map.constBegin(); it != map.constEnd(); ++it)
+            {
+                jsonObject[it.key()] = variantToJsonValue(it.value());
+                qDebug() << it.key() << it.value();
+            }
+            return QJsonValue(jsonObject);
+        }
+        // 如果是其他自定义类型，继续递归转换
+        else
+        {
+            return QJsonValue::fromVariant(variant);
+        }
     }
     default:
         return QJsonValue::fromVariant(variant);
@@ -44,6 +106,7 @@ QJsonValue ConfigSaver::variantToJsonValue(const QVariant &variant) {
 
 // 构造函数
 ConfigSaver::ConfigSaver() {}
+
 
 // 成员函数实现
 void ConfigSaver::saveConfig(const QMap<Step, QMap<QString, QVariant>>& config,const QString& savePath) {

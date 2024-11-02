@@ -4,7 +4,6 @@
 #include <QThread>
 #include <QProcess>
 
-
 /**
  * @brief The CommandProcess class
  * 一个简单的运行命令行程序的类，基于QProcess实现
@@ -27,14 +26,21 @@ public:
      * @brief CommandProcess 初始化程序名称、参数列表
      * @param program        程序名称
      * @param args           参数列表
+     * @param workDirectory  运行目录
      */
-    CommandProcess(const QString& program, const QStringList& args);
+    CommandProcess(const QString& program, const QStringList& args, QString workDirectory);
 
     ~CommandProcess();
 
     QString& getProgram();
     QStringList& getArgs();
     QProcess* getProcess();
+
+    /**
+     * @brief isRunning 当前程序结束,返回true
+     * @return
+     */
+    bool isRunning() const;
 
     /**
      * @brief wrapperHTML  对输入数据使用HTML标签包裹
@@ -67,6 +73,11 @@ public slots:
      */
     void run() const;
 
+    /**
+     * @brief terminate 终止程序
+     */
+    void terminate() const;
+
 
 private slots:
 
@@ -88,6 +99,7 @@ private:
     QProcess *m_process = nullptr;
     QString m_program;
     QStringList m_args;
+    QString m_workDirectory;
 
 };
 

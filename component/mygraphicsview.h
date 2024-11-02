@@ -23,6 +23,9 @@
 #include <QPushButton>
 #include <QHBoxLayout>
 #include "canvaseitembase.h"
+#include "common.h"
+
+
 
 /**
  * @brief The MyGraphicsView class 继承于QGraphicsView，与自定义canvaseitembase组合，实现图片切换、缩放、拖动、绘画矩形与多边形。
@@ -51,12 +54,10 @@ protected:
 private:
     int imgShowSize = 500;
 
-    QGraphicsScene *scene = new QGraphicsScene();
-    // QWidget *widget = new QWidget(this);
-    // QHBoxLayout *layout = new QHBoxLayout();
-    QLabel *labelTitle = new QLabel(this);
-    // QPushButton *pushButtonToggleShow = new QPushButton("LESS");
-    // bool showMore = true;
+    QGraphicsScene *scene;
+    QWidget *widgetTittle;
+    QLabel *labelTitle;
+
     QString fileInfomation;
 
     //绘制辅助图元

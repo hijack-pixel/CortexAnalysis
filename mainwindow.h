@@ -7,6 +7,7 @@
 #include "./component/imagelist.h"
 #include "./component/comboxitemdelegate.h"
 #include "./component/clickablewidget.h"
+#include "./component/csvparser.h"
 
 #include <QMainWindow>
 #include <QQuickWidget>
@@ -19,7 +20,6 @@
 #include <QVariant>
 #include <QCoreApplication>
 #include <QStackedLayout>
-
 
 
 QT_BEGIN_NAMESPACE
@@ -38,17 +38,25 @@ public:
     ~MainWindow();
 
     /**
-     * @brief addNewThread 添加新的进程到设定的进程列表中
-     * @param program      程序名，cmd、octave、explore....
-     * @param args         参数列表
+     * @brief addNewThread    添加新的进程到设定的进程列表中
+     * @param program         程序名，cmd、octave、explore....
+     * @param args            参数列表
+     * @param workDirectory   运行目录
      */
-    void addNewThread(QString program, QStringList args);
+    void addNewThread(QString program, QStringList args, QString workDirectory);
 
     /**
-     * @brief slotChange   因为只有一个图片展示列表和日志显示框，所以在界面切换时信号槽需要换绑
-     * @param currentStep  当前新的页面，信号连接到对应的cmdProcess
+     * @brief slotStepChange   因为只有一个图片展示列表和日志显示框，所以在界面切换时信号槽需要换绑
+     * @param currentStep      当前新的页面，信号连接到对应的cmdProcess
      */
-    void slotChange(Step currentStep);
+    void slotStepChange(Step currentStep);
+
+    /**
+     * @brief updateWidgetStepCheck  点击不同的分析步骤,按钮有选中效果,移除其他未选中的效果
+     * @param stepPre                之前显示的
+     * @param stepCur                当前显示的
+     */
+    void updateWidgetStepCheck(Step stepPre, Step stepCur);
 
     void initDataSettingPage1();
     void initDataSettingPage2();
@@ -120,11 +128,27 @@ public slots:
      */
     void on_updateImageList();
 
+    /**
+     * @brief on_runButtonEndFinish 开始按钮随着程序运行状态改变功能,后台正常结束
+     */
+    void on_runButtonEndFinish();
+
+    /**
+     * @brief on_runButtonEndError 开始按钮随着程序运行状态改变功能,后台异常结束
+     * @param err                  错误类型
+     */
+    void on_runButtonEndError(QProcess::ProcessError err);
+
 signals:
     /**
      * @brief cmdStartRun 发出此信号，即说明通知后台开始运行命令行了
      */
     void cmdStartRun();
+
+    /**
+     * @brief cmdTerminate 发出此信号，即说明通知后台需要终止命令行了
+     */
+    void cmdTerminate();
 
 
 private:
@@ -151,23 +175,36 @@ private:
     QWidget* m_widgetDataSetting_5;
     QWidget* m_widgetDataSetting_6;
 
+
     QMap<Step, QMap<QString, QVariant>> m_config;             // 用于存储全局配置，包含每一步的数据设置和软件设置
     QMap<QString, QList<QString>> m_groupedFiles;             // 用于存储STEP1小鼠文件名分组后的文件，每只小鼠对应多个文件
     QMap<QString, QVector<QVector<int>>> m_groupedFilesPoint; // 用于存储每只小鼠对应的配准点坐标
 
     ConfigSaver m_configSaver;          // 用于保存配置至json文件
+    CsvParser   m_csvParser;            // 用于解析csv文件
 
     ImageList *m_imageList;             // 图片列表显示
 
+    // QMap<Step, QString> m_resultPath =  // 分析结果保存列表
+    // {
+    //     {STEP1, QDir::cleanPath(QCoreApplication::applicationDirPath() + "/data/step1")},
+    //     {STEP2, QDir::cleanPath(QCoreApplication::applicationDirPath() + "/data/step2")},
+    //     {STEP3, QDir::cleanPath(QCoreApplication::applicationDirPath() + "/data/step3")},
+    //     {STEP4, QDir::cleanPath(QCoreApplication::applicationDirPath() + "/data/step4")},
+    //     {STEP5, QDir::cleanPath(QCoreApplication::applicationDirPath() + "/data/step5")},
+    //     {STEP6, QDir::cleanPath(QCoreApplication::applicationDirPath() + "/data/step6")}
+    // };
+
     QMap<Step, QString> m_resultPath =  // 分析结果保存列表
     {
-        {STEP1, QDir::cleanPath(QCoreApplication::applicationDirPath() + "/data/step1")},
-        {STEP2, QDir::cleanPath(QCoreApplication::applicationDirPath() + "/data/step2")},
-        {STEP3, QDir::cleanPath(QCoreApplication::applicationDirPath() + "/data/step3")},
-        {STEP4, QDir::cleanPath(QCoreApplication::applicationDirPath() + "/data/step4")},
-        {STEP5, QDir::cleanPath(QCoreApplication::applicationDirPath() + "/data/step5")},
-        {STEP6, QDir::cleanPath(QCoreApplication::applicationDirPath() + "/data/step6")}
+        {STEP1, QDir::cleanPath(QDir::currentPath() + "/data/step1")},
+        {STEP2, QDir::cleanPath(QDir::currentPath() + "/data/step2")},
+        {STEP3, QDir::cleanPath(QDir::currentPath() + "/data/step3")},
+        {STEP4, QDir::cleanPath(QDir::currentPath() + "/data/step4")},
+        {STEP5, QDir::cleanPath(QDir::currentPath() + "/data/step5")},
+        {STEP6, QDir::cleanPath(QDir::currentPath() + "/data/step6")}
     };
+
 };
 
 

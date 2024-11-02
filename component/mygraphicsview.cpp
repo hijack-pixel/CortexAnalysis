@@ -1,6 +1,8 @@
 ﻿#include "mygraphicsview.h"
 #pragma execution_character_set("utf-8")
 
+extern QString convertImgTitle(QString title);
+
 MyGraphicsView::MyGraphicsView()
 {
     init();
@@ -22,7 +24,9 @@ void MyGraphicsView::init()
 
     pen.setColor(QColor(255, 203, 59));
     pen.setWidth(2);
-    setTransformationAnchor(QGraphicsView::AnchorViewCenter);    // scene 在 view 的中心点作为锚点
+    // setTransformationAnchor(QGraphicsView::AnchorViewCenter);    // scene 在 view 的中心点作为锚点
+
+    scene = new QGraphicsScene();
 
     //添加辅助框选图元
     assistItem  = new CanvaseItemBase();
@@ -33,31 +37,20 @@ void MyGraphicsView::init()
     imgScaleItem->setCacheMode(QGraphicsItem::ItemCoordinateCache);
     scene->addItem(imgScaleItem);
 
-    // layout->addWidget(labelTitle);
-    // layout->addWidget(pushButtonToggleShow);
-    // layout->setMargin(0);
-    // layout->setAlignment(Qt::AlignLeft | Qt::AlignTop);
-    // widget->setLayout(layout);
-    // pushButtonToggleShow->setFixedSize(QSize(20, 20));
 
-    // connect(pushButtonToggleShow, &QPushButton::clicked, labelTitle, [&](){
-    //     if(showMore)
-    //     {
-    //         pushButtonToggleShow->setText("LESS");
-    //         labelTitle->setText(fileInfomation);
-    //     }
-    //     else
-    //     {
-    //         QString text = labelTitle->text();
-    //         int newlinePos = text.indexOf('\n');
-    //         if (newlinePos != -1) {
-    //             text.truncate(newlinePos);
-    //         }
-    //         labelTitle->setText(text);
-    //         pushButtonToggleShow->setText("MORE");
-    //     }
-    //     showMore = !showMore;
-    // });
+    labelTitle = new QLabel();
+    widgetTittle = new QWidget(this);
+    QHBoxLayout *layout = new QHBoxLayout();
+
+    labelTitle->setGeometry(0, 0, 5000, 30); // 设置位置和大小
+    labelTitle->setMargin(6);
+    labelTitle->setStyleSheet("background-color: rgba(0, 0, 0, 100); color: white;");
+    // labelTitle->setWordWrap(true);
+    labelTitle->setAlignment(Qt::AlignLeft | Qt::AlignTop);
+    layout->addWidget(labelTitle);
+    layout->setMargin(0);
+    layout->setAlignment(Qt::AlignLeft | Qt::AlignTop);
+    widgetTittle->setLayout(layout);
 
     setScene(scene);
     enableFreeDraw();
@@ -72,7 +65,7 @@ void MyGraphicsView::setImgByPath(QString path)
     //缩放图
     // pixmap = pixmap.scaled(QSize(imgShowSize, imgShowSize), Qt::KeepAspectRatio, Qt::FastTransformation);
     imgScaleSize = pixmap.size();
-    imgScaleRect.setRect(0, 0, imgScaleSize.width(), imgScaleSize.height());
+    imgScaleRect.setRect(-10, -10, imgScaleSize.width()+20, imgScaleSize.height()+20);
     historyCenter.setX(imgScaleRect.width()/2);
     historyCenter.setY(imgScaleRect.height()/2);
 
@@ -88,28 +81,18 @@ void MyGraphicsView::setImgByPath(QString path)
     {
         labelTitle->setHidden(false);
         imgScaleItem->setPixmap(pixmap);
-        centerOn(mapToParent(QPoint(imgScaleSize.width()/2, imgScaleSize.height()/2)));
+        // centerOn(mapToParent(QPoint(imgScaleSize.width()/2, imgScaleSize.height()/2)));
 
         // 设置图片信息 label
         QFileInfo fileInfo(path);
         if(fileInfo.isFile() && fileInfo.exists())
         {
-            fileInfomation = "文件名  ：" + fileInfo.fileName();
-                // +
-                // "分辨率  ：" + QString::number(imgOriginSize.width()) + " X " + QString::number(imgOriginSize.height()) + '\n' +
-                // "文件大小：" + QString::number(static_cast<double>(fileInfo.size()) / (1024 * 1024), 'g', 2) + " MB" + '\n' +
-                // "存储路径：" + fileInfo.filePath() + '\n' +
-                // "创建时间：" + fileInfo.fileTime(QFileDevice::FileBirthTime).toString("yyyy-MM-dd HH:mm:ss");
-
-            labelTitle->setText(fileInfomation);
-            labelTitle->setGeometry(0, 0, width(), 30); // 设置位置和大小
-            labelTitle->setMargin(6);
-            labelTitle->setStyleSheet("background-color: rgba(0, 0, 0, 100); color: white;");
-            labelTitle->setWordWrap(true);
-            labelTitle->setAlignment(Qt::AlignLeft | Qt::AlignTop);
+            labelTitle->setText(convertImgTitle(fileInfo.fileName()));
         }
     }
 
+    scene->setSceneRect(imgScaleRect);
+    fitInView(scene->sceneRect(), Qt::KeepAspectRatio);
 
     // 图片大于显示框，缩放适应显示
     qreal ratio = 1;
@@ -162,6 +145,7 @@ void MyGraphicsView::wheelEvent(QWheelEvent *event)
 
     zoomOutEnable = ratio > minScaleRatio ? true : false; //放大缩小限制
     zoomInEnable = ratio < maxScaleRatio ? true : false;
+
 
     if(event->angleDelta().y() < 0 && zoomOutEnable)
         scale(1-wheelScaleDelta, 1-wheelScaleDelta);
@@ -247,7 +231,6 @@ void MyGraphicsView::mouseMoveEvent(QMouseEvent *event)
             historyCenter.x() - delta.x(),
             historyCenter.y() - delta.y()
             )));
-
     }
 
     this->viewport()->update();

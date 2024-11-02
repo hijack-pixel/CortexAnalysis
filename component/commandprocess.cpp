@@ -6,12 +6,15 @@
 
 CommandProcess::CommandProcess(QObject *parent): QObject(parent) {};
 
-CommandProcess::CommandProcess(const QString& program, const QStringList& args)
+CommandProcess::CommandProcess(const QString& program, const QStringList& args, QString workDirectory)
 {
     m_process = new QProcess(this);
     m_program = program;
     m_args = args;
+    m_workDirectory = workDirectory;
 
+    // 通过信号队列（queued connection）传递需要注册
+    qRegisterMetaType<QProcess::ProcessError>();
 
     connect(m_process, SIGNAL(readyRead()), this, SLOT(onProcessReadOutput()));
     connect(m_process, SIGNAL(readyReadStandardError()), this, SLOT(onProcessReadError()));
@@ -19,8 +22,7 @@ CommandProcess::CommandProcess(const QString& program, const QStringList& args)
     connect(m_process, SIGNAL(stateChanged(QProcess::ProcessState)), this, SLOT(onProcessStateChanged(QProcess::ProcessState)));
     connect(m_process, SIGNAL(errorOccurred(QProcess::ProcessError)), this, SLOT(onProcessError(QProcess::ProcessError)));
 
-    connect(m_process, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
-            this, &CommandProcess::onProcessExitState);
+    connect(m_process, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished), this, &CommandProcess::onProcessExitState);
 }
 
 
@@ -52,6 +54,15 @@ QProcess* CommandProcess::getProcess()
     return m_process;
 }
 
+bool CommandProcess::isRunning() const
+{
+    if(m_process->state() == QProcess::NotRunning)
+        return false;
+    else
+        return true;
+}
+
+
 QString CommandProcess::wrapperHTML(QString str, LOG log)
 {
     switch(log)
@@ -68,11 +79,32 @@ QString CommandProcess::wrapperHTML(QString str, LOG log)
 
 void CommandProcess::run() const
 {
+    if(!m_workDirectory.isEmpty())
+    {
+        m_process->setWorkingDirectory(m_workDirectory);
+    }
+
     m_process->start(m_program, m_args);  //process在thread中阻塞运行
 
     m_process->waitForStarted();   //等待程序启动
 
-    m_process->waitForFinished();  //等待程序关闭
+    // m_process->waitForFinished();  //等待程序关闭
+}
+
+
+void CommandProcess::terminate() const
+{
+    qDebug() << QString("Attemptting to kill(running state:%1): ").arg(isRunning()) << m_program << m_args;
+    if(isRunning())
+    {
+        m_process->kill();
+        if(!isRunning())
+            qDebug() << "Kill successfull: " << m_program << m_args;
+    }
+    else
+    {
+        qDebug() << "NotRunning, Kill error: " << m_program << m_args;
+    }
 }
 
 

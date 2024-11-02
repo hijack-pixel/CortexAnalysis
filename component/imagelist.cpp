@@ -2,7 +2,7 @@
 
 #include "imagelist.h"
 #include <QDebug>
-
+#include <QDateTime>
 
 ImageList::ImageList(QWidget *parent): QWidget{parent}
 {
@@ -44,10 +44,17 @@ void ImageList::setImgPath(const QString& path)
 
     foreach (const auto &imgInfo, m_imgInfoList) {
         QPixmap pixmap(imgInfo.absoluteFilePath());
+
         QListWidgetItem *item = new QListWidgetItem(QIcon(pixmap), imgInfo.fileName());
+        // item->setSizeHint(QSize(100, 80));
         item->setFlags(item->flags() | Qt::ItemIsUserCheckable); // 添加复选框
-        item->setCheckState(Qt::Unchecked); // 默认不选中
+        item->setCheckState(Qt::Unchecked);                      // 默认不选中
         m_listWidget->addItem(item);
+        item->setToolTip(         "文件名  ：" + imgInfo.fileName()+
+                    "分辨率  ：" + QString::number(pixmap.width()) + " X " + QString::number(pixmap.height()) + '\n' +
+                    "文件大小：" + QString::number(static_cast<double>(imgInfo.size()) / (1024 * 1024), 'g', 2) + " MB" + '\n' +
+                    "存储路径：" + imgInfo.filePath() + '\n' +
+                    "创建时间：" + imgInfo.fileTime(QFileDevice::FileBirthTime).toString("yyyy-MM-dd HH:mm:ss"));
     }
 
     if(m_imgInfoList.empty())
@@ -56,6 +63,7 @@ void ImageList::setImgPath(const QString& path)
     }
     else
     {
+        m_listWidget->setCurrentRow(0);
         emit itemCurrent(m_imgInfoList[0].absoluteFilePath());
     }
 }
