@@ -1,4 +1,5 @@
-﻿#include "commandprocess.h"
+﻿#pragma execution_character_set("utf-8")
+#include "commandprocess.h"
 
 #include <QDebug>
 #include <QMessageBox>
@@ -92,14 +93,61 @@ void CommandProcess::run() const
 }
 
 
-void CommandProcess::terminate() const
+void CommandProcess::abort() const
 {
-    qDebug() << QString("Attemptting to kill(running state:%1): ").arg(isRunning()) << m_program << m_args;
+    QString pid = QString::number(m_process->processId());
+    qDebug() << QString("Attemptting to kill(running state:%1, pid:%2): ")
+                    .arg(isRunning()?"Running":"Not Running", pid) << m_program << m_args;
     if(isRunning())
     {
-        m_process->kill();
-        if(!isRunning())
+        m_process->terminate();
+
+        if (!m_process->waitForFinished(500))
+        {
+            qDebug() << "terminate failed, force kill: " << m_program << m_args;
+            m_process->kill();
+        }
+
+        if(m_process->waitForFinished(500))
             qDebug() << "Kill successfull: " << m_program << m_args;
+
+        // 杀掉子进程，octave.exe会唤起 conhost.exe octave-gui.exe，杀掉octave-gui.exe，conhost.exe自动终止
+        QProcess processKillChild;
+        connect(&processKillChild, &QProcess::readyReadStandardOutput, this, [&](){
+            QProcess *process = qobject_cast<QProcess *>(sender());
+            if (process)
+            {
+                QProcess taskKillProcess;
+                QString output = process->readAllStandardOutput();// 输出示例: "ProcessId\n9324\n"
+                QStringList lines = output.split("\n");
+                qDebug() << "SubProcess found: " << lines.join(" ");
+                foreach (const QString &line, lines)
+                {
+                    if (line.startsWith("ProcessId"))
+                        continue; // 跳过标题行
+
+                    if (!line.isEmpty()) // 解析 PID
+                    {
+                        bool ok;
+                        int pid = line.toInt(&ok);
+                        if (ok)
+                        {
+                            taskKillProcess.start("taskkill", {"/PID", QString::number(pid), "/F" });
+                            taskKillProcess.waitForFinished();
+                            qDebug() << QString(taskKillProcess.readAllStandardOutput());
+                            qDebug() << " kill octave-gui.exe PID:" << pid;
+                        }
+                    }
+                }
+            }});
+        QString program = "wmic";
+        QStringList arguments;
+        arguments << "process"
+                  << "where" << QString("ParentProcessId=%1 and Name='%2'").arg(pid).arg("octave-gui.exe")
+                  << "get" << "ProcessId";
+        processKillChild.start(program, arguments);
+        processKillChild.waitForFinished();
+
     }
     else
     {
@@ -126,6 +174,7 @@ void CommandProcess::onProcessReadError()
 
     QTextCodec* codec = QTextCodec::codecForName("UTF-8");
     QString output = codec->toUnicode(data);
+    output += "<br><br>";
 
     emit resultReady(wrapperHTML(output, LOG::ERROR));
     qDebug() << QString("%1 %2 output: %3").arg(m_program, m_args.join(' '), output);
@@ -137,14 +186,14 @@ void CommandProcess::onProcessStateChanged(QProcess::ProcessState state)
     switch(state)
     {
     case QProcess::NotRunning:
-        qDebug() << QString("NotRunning %1 %2").arg(m_program, m_args.join(' '));
+        qDebug() << QString("NotRunning %1 %2 (PID: %3)").arg(m_program, m_args.join(' '), QString::number(m_process->processId()));
         break;
     case QProcess::Starting:
-        qDebug() << QString("Starting %1 %2").arg(m_program, m_args.join(' '));
+        qDebug() << QString("Starting %1 %2 (PID: %3)").arg(m_program, m_args.join(' '), QString::number(m_process->processId()));
         break;
     case QProcess::Running:
         emit resultReady(wrapperHTML(QString("Running %1 %2").arg(m_program, m_args.join(' ')), LOG::INFO));
-        qDebug() << QString("Running %1 %2").arg(m_program, m_args.join(' '));
+        qDebug() << QString("Running %1 %2 (PID: %3)").arg(m_program, m_args.join(' '), QString::number(m_process->processId()));
         break;
     }
 }
@@ -186,12 +235,12 @@ void CommandProcess::onProcessExitState(int exitCode, QProcess::ExitStatus exitS
     {
     case QProcess::NormalExit:
         emit cmdFinish();
-        emit resultReady(wrapperHTML(QString("NormalExit %1 %2").arg(m_program, m_args.join(' ')), LOG::INFO));
+        emit resultReady(wrapperHTML(QString("NormalExit %1 %2 <br><br>").arg(m_program, m_args.join(' ')), LOG::INFO));
         qDebug() << QString("NormalExit %1 %2").arg(m_program, m_args.join(' '));
         break;
     case QProcess::CrashExit:
         emit cmdError(QProcess::Crashed);
-        emit resultReady(wrapperHTML(QString("CrashExit %1 %2").arg(m_program, m_args.join(' ')), LOG::ERROR));
+        emit resultReady(wrapperHTML(QString("CrashExit %1 %2 <br><br>").arg(m_program, m_args.join(' ')), LOG::ERROR));
         qDebug() << QString("CrashExit %1 %2").arg(m_program, m_args.join(' '));
         break;
     }

@@ -8,6 +8,7 @@
         <file>icon/step5.svg</file>
         <file>icon/step6.svg</file>
         <file>qss/main.qss</file>
-        <file>breathinglight.qml</file>
+        <file>icon/title.png</file>
+        <file>qml/breathinglight.qml</file>
     </qresource>
 </RCC>

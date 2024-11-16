@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>850</width>
-    <height>800</height>
+    <width>932</width>
+    <height>922</height>
    </rect>
   </property>
   <property name="minimumSize">
@@ -38,7 +38,7 @@
     </property>
     <item>
      <widget class="QWidget" name="verticalWidget" native="true">
-      <layout class="QVBoxLayout" name="verticalLayout_2" stretch="1,7">
+      <layout class="QVBoxLayout" name="verticalLayout_2" stretch="1,8">
        <property name="spacing">
         <number>20</number>
        </property>
@@ -140,7 +140,7 @@
                <string notr="true">font-size: 9pt;</string>
               </property>
               <property name="text">
-               <string>成像预览</string>
+               <string>成像配准</string>
               </property>
               <property name="alignment">
                <set>Qt::AlignmentFlag::AlignCenter</set>
@@ -208,7 +208,7 @@
                <string notr="true">font-size: 9pt;</string>
               </property>
               <property name="text">
-               <string>成像配准</string>
+               <string>连通网络</string>
               </property>
               <property name="alignment">
                <set>Qt::AlignmentFlag::AlignCenter</set>
@@ -276,7 +276,7 @@
                <string notr="true">font-size: 9pt;</string>
               </property>
               <property name="text">
-               <string>时序相关性</string>
+               <string>功率谱图</string>
               </property>
               <property name="alignment">
                <set>Qt::AlignmentFlag::AlignCenter</set>
@@ -344,7 +344,7 @@
                <string notr="true">font-size: 9pt;</string>
               </property>
               <property name="text">
-               <string>控件连通性</string>
+               <string>稳定相关</string>
               </property>
               <property name="alignment">
                <set>Qt::AlignmentFlag::AlignCenter</set>
@@ -412,7 +412,7 @@
                <string notr="true">font-size: 9pt;</string>
               </property>
               <property name="text">
-               <string>网络图谱</string>
+               <string>ROI连通</string>
               </property>
               <property name="alignment">
                <set>Qt::AlignmentFlag::AlignCenter</set>
@@ -485,7 +485,7 @@
                <string notr="true">font-size: 9pt;</string>
               </property>
               <property name="text">
-               <string>功率谱分析</string>
+               <string>信噪分析</string>
               </property>
               <property name="alignment">
                <set>Qt::AlignmentFlag::AlignCenter</set>
@@ -551,11 +551,20 @@
                  </property>
                  <item>
                   <widget class="QLabel" name="labelLogoText">
+                   <property name="sizePolicy">
+                    <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                     <horstretch>0</horstretch>
+                     <verstretch>0</verstretch>
+                    </sizepolicy>
+                   </property>
                    <property name="minimumSize">
                     <size>
-                     <width>30</width>
-                     <height>20</height>
+                     <width>120</width>
+                     <height>70</height>
                     </size>
+                   </property>
+                   <property name="styleSheet">
+                    <string notr="true"/>
                    </property>
                    <property name="text">
                     <string>大脑皮层成像分析软件</string>
@@ -591,7 +600,7 @@
        <item>
         <layout class="QHBoxLayout" name="horizontalLayout_2">
          <item>
-          <layout class="QVBoxLayout" name="verticalLayout_4" stretch="1,3">
+          <layout class="QVBoxLayout" name="verticalLayout_4" stretch="1,4">
            <property name="spacing">
             <number>10</number>
            </property>
@@ -638,21 +647,110 @@
                   <property name="title">
                    <string>分析进度</string>
                   </property>
-                  <layout class="QHBoxLayout" name="horizontalLayout_13">
+                  <layout class="QVBoxLayout" name="verticalLayout_14">
+                   <property name="spacing">
+                    <number>6</number>
+                   </property>
                    <item>
-                    <layout class="QVBoxLayout" name="verticalLayout" stretch="1">
+                    <widget class="QFrame" name="frame">
+                     <property name="frameShape">
+                      <enum>QFrame::Shape::Box</enum>
+                     </property>
+                     <property name="frameShadow">
+                      <enum>QFrame::Shadow::Plain</enum>
+                     </property>
+                     <property name="lineWidth">
+                      <number>0</number>
+                     </property>
+                     <layout class="QVBoxLayout" name="verticalLayout">
+                      <property name="spacing">
+                       <number>0</number>
+                      </property>
+                      <property name="leftMargin">
+                       <number>0</number>
+                      </property>
+                      <property name="topMargin">
+                       <number>0</number>
+                      </property>
+                      <property name="rightMargin">
+                       <number>0</number>
+                      </property>
+                      <property name="bottomMargin">
+                       <number>0</number>
+                      </property>
+                      <item>
+                       <widget class="QProgressBar" name="progressBar">
+                        <property name="sizePolicy">
+                         <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                          <horstretch>0</horstretch>
+                          <verstretch>0</verstretch>
+                         </sizepolicy>
+                        </property>
+                        <property name="minimumSize">
+                         <size>
+                          <width>0</width>
+                          <height>3</height>
+                         </size>
+                        </property>
+                        <property name="styleSheet">
+                         <string notr="true">QProgressBar {
+    background-color: white; /* 背景色 */
+    border-radius: 2px; 
+	border: 0px solid #F0F0F0;
+}
+</string>
+                        </property>
+                        <property name="value">
+                         <number>24</number>
+                        </property>
+                        <property name="alignment">
+                         <set>Qt::AlignmentFlag::AlignBottom|Qt::AlignmentFlag::AlignHCenter</set>
+                        </property>
+                        <property name="textVisible">
+                         <bool>false</bool>
+                        </property>
+                       </widget>
+                      </item>
+                      <item>
+                       <widget class="QTextBrowser" name="textBrowser">
+                        <property name="sizePolicy">
+                         <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+                          <horstretch>0</horstretch>
+                          <verstretch>0</verstretch>
+                         </sizepolicy>
+                        </property>
+                       </widget>
+                      </item>
+                     </layout>
+                    </widget>
+                   </item>
+                   <item>
+                    <layout class="QHBoxLayout" name="horizontalLayoutLog" stretch="0,0,0,0">
+                     <item>
+                      <spacer name="horizontalSpacer">
+                       <property name="orientation">
+                        <enum>Qt::Orientation::Horizontal</enum>
+                       </property>
+                       <property name="sizeHint" stdset="0">
+                        <size>
+                         <width>40</width>
+                         <height>20</height>
+                        </size>
+                       </property>
+                      </spacer>
+                     </item>
                      <item>
                       <widget class="QPushButton" name="pushButtonRun">
                        <property name="sizePolicy">
-                        <sizepolicy hsizetype="Minimum" vsizetype="Minimum">
+                        <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
                          <horstretch>0</horstretch>
                          <verstretch>0</verstretch>
                         </sizepolicy>
                        </property>
                        <property name="maximumSize">
                         <size>
-                         <width>80</width>
-                         <height>80</height>
+                         <width>90</width>
+                         <height>40</height>
                         </size>
                        </property>
                        <property name="styleSheet">
@@ -663,17 +761,21 @@
                        </property>
                       </widget>
                      </item>
+                     <item>
+                      <widget class="QPushButton" name="pushButtonLogClear">
+                       <property name="text">
+                        <string>清除</string>
+                       </property>
+                      </widget>
+                     </item>
+                     <item>
+                      <widget class="QPushButton" name="pushButtonLogExport">
+                       <property name="text">
+                        <string>导出</string>
+                       </property>
+                      </widget>
+                     </item>
                     </layout>
-                   </item>
-                   <item>
-                    <widget class="QTextBrowser" name="textBrowser">
-                     <property name="sizePolicy">
-                      <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-                       <horstretch>0</horstretch>
-                       <verstretch>0</verstretch>
-                      </sizepolicy>
-                     </property>
-                    </widget>
                    </item>
                   </layout>
                  </widget>
@@ -706,7 +808,7 @@
                 <property name="title">
                  <string>分析结果</string>
                 </property>
-                <layout class="QHBoxLayout" name="horizontalLayout_6" stretch="3,2">
+                <layout class="QHBoxLayout" name="horizontalLayout_6" stretch="2,1">
                  <property name="spacing">
                   <number>0</number>
                  </property>
@@ -768,27 +870,10 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>850</width>
+     <width>932</width>
      <height>21</height>
     </rect>
    </property>
-   <widget class="QMenu" name="menu">
-    <property name="title">
-     <string>开始</string>
-    </property>
-    <addaction name="actionaction1"/>
-    <addaction name="actionaction2"/>
-    <addaction name="actionaction3"/>
-   </widget>
-   <widget class="QMenu" name="menu_2">
-    <property name="title">
-     <string>帮助</string>
-    </property>
-    <addaction name="actionSettings"/>
-    <addaction name="actionAbout"/>
-   </widget>
-   <addaction name="menu"/>
-   <addaction name="menu_2"/>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
   <action name="actionaction1">

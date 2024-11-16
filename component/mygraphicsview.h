@@ -36,6 +36,7 @@ class MyGraphicsView : public QGraphicsView
 public:
     MyGraphicsView();
     MyGraphicsView(QWidget *parent = nullptr);
+    ~MyGraphicsView();
 
     void init();
     void setImgByPath(QString path);
@@ -50,6 +51,9 @@ protected:
     void mousePressEvent(QMouseEvent *event) override;
     void mouseMoveEvent(QMouseEvent *event) override;
     void mouseReleaseEvent(QMouseEvent *event) override;
+    void mouseDoubleClickEvent(QMouseEvent *event) override;
+
+    void resizeEvent(QResizeEvent *event) override;
 
 private:
     int imgShowSize = 500;
@@ -58,7 +62,7 @@ private:
     QWidget *widgetTittle;
     QLabel *labelTitle;
 
-    QString fileInfomation;
+    QFileInfo fileInfo;
 
     //绘制辅助图元
     CanvaseItemBase* assistItem;
@@ -66,6 +70,9 @@ private:
 
     //显示图片
     QGraphicsPixmapItem *imgScaleItem;
+
+    // 默认图片
+    QPixmap *defaultImg;
 
     //鼠标起始点，结束点，变化大小
     QPointF startPoint;
@@ -82,12 +89,13 @@ private:
     bool zoomInEnable = true, zoomOutEnable = true; //控制缩放比例
 
 
-    //矩形框选
     QSize imgOriginSize;   //原图尺寸
+    QSize imgScaleSize;    //缩放图尺寸
+
+    //矩形框选
     QRectF imgOriginRect;
     QRectF boxOriginRect;
 
-    QSize imgScaleSize;    //缩放图尺寸
     QRectF imgScaleRect;
     QRectF boxScaleRect;
 
@@ -98,6 +106,8 @@ private:
     //矩形框选 自由框选 使能
     bool rectDrawEnable = false;
     bool freeDrawEnable = false;
+
+    bool isDialogOpen = false;
 };
 
 #endif // MYGRAPHICSVIEW_H

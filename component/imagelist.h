@@ -34,9 +34,15 @@ public:
 signals:
     void itemCurrent(const QString& path);
 
+public slots:
+    void on_updateCheckState();
+
+    void on_downloadSelect();
+
 private:
-    QListWidget *m_listWidget;
-    QPushButton *pushButtonDownloadSelect;
+    QListWidget *m_listWidget = nullptr;
+    QPushButton *m_pushButtonDownloadSelect = nullptr;
+    QCheckBox *m_checkBox = nullptr;
 
     QFileInfoList m_imgInfoList;
 };

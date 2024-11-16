@@ -7,6 +7,7 @@
 #include "./component/imagelist.h"
 #include "./component/comboxitemdelegate.h"
 #include "./component/clickablewidget.h"
+#include "./component/settingsdialog.h"
 #include "./component/csvparser.h"
 
 #include <QMainWindow>
@@ -20,6 +21,7 @@
 #include <QVariant>
 #include <QCoreApplication>
 #include <QStackedLayout>
+#include <QFileSystemWatcher>
 
 
 QT_BEGIN_NAMESPACE
@@ -69,12 +71,14 @@ public:
 protected:
     virtual void paintEvent(QPaintEvent *event) override;
 
+    void resizeEvent(QResizeEvent *event) override;
+
 public slots:
     /**
-     * @brief changeLightColor  槽函数，用于改变qml指示灯的颜色
-     * @param color             枚举类型，默认0
+     * @brief changeQmlLightColor  槽函数，用于改变qml指示灯的颜色
+     * @param color                枚举类型，默认0
      */
-    void changeLightColor(LightColor color=LightColor::SUCCESS);
+    void changeQmlLightColor(LightColor color=LightColor::SUCCESS);
 
     /**
      * @brief changeCurrentDisplay 槽函数，改变当前显示哪一步
@@ -119,6 +123,21 @@ public slots:
     void on_textBrowserLogShow(QString str);
 
     /**
+     * @brief on_clearTextBrowser  槽函数 清除 QTextBrowser 内容
+     */
+    void on_textBrowserLogClear();
+
+    /**
+     * @brief on_textBrowserLogExport 槽函数 导出 QTextBrowser 内容
+     */
+    void on_textBrowserLogExport();
+
+    /**
+     * @brief on_updateProgressBar 槽函数 更新进度条
+     */
+    void on_updateProgressBar(const QString &path);
+
+    /**
      * @brief on_processStart 在开始按钮按下时触发的函数，目的是在之前根据当前页面做一些检查和保存配置，决定是否运行分析
      */
     void on_processStart();
@@ -139,6 +158,23 @@ public slots:
      */
     void on_runButtonEndError(QProcess::ProcessError err);
 
+    /**
+     * @brief on_settingAction  开始菜单栏配置按钮点击事件
+     */
+    void on_settingAction();
+
+    /**
+     * @brief on_aboutAction  开始菜单栏关于我们点击事件
+     */
+    void on_aboutAction();
+
+    /**
+     * @brief on_exitAction  开始菜单栏推退出程序事件
+     */
+    void on_exitAction();
+
+
+
 signals:
     /**
      * @brief cmdStartRun 发出此信号，即说明通知后台开始运行命令行了
@@ -154,6 +190,8 @@ signals:
 private:
     Ui::MainWindow *ui;
 
+    QPixmap *pixmapTitleLogo = nullptr;               // 文字logo
+
     QMutex mutex;                                     // 创建互斥锁对象
 
     QQuickWidget  *m_qmlWidget = nullptr;             // qml控件，能放入widget交互
@@ -168,43 +206,57 @@ private:
 
     static Step m_currentDisplay;                     // 当前显示的是哪一步的页面
     QStackedLayout* m_layoutDataSetting;              // 根据页面展示不同的数据准备选择设置
-    QWidget* m_widgetDataSetting_1;
-    QWidget* m_widgetDataSetting_2;
-    QWidget* m_widgetDataSetting_3;
-    QWidget* m_widgetDataSetting_4;
-    QWidget* m_widgetDataSetting_5;
-    QWidget* m_widgetDataSetting_6;
+    QWidget* m_widgetDataSetting_1 = nullptr;
+    QWidget* m_widgetDataSetting_2 = nullptr;
+    QWidget* m_widgetDataSetting_3 = nullptr;
+    QWidget* m_widgetDataSetting_4 = nullptr;
+    QWidget* m_widgetDataSetting_5 = nullptr;
+    QWidget* m_widgetDataSetting_6 = nullptr;
 
 
-    QMap<Step, QMap<QString, QVariant>> m_config;             // 用于存储全局配置，包含每一步的数据设置和软件设置
-    QMap<QString, QList<QString>> m_groupedFiles;             // 用于存储STEP1小鼠文件名分组后的文件，每只小鼠对应多个文件
-    QMap<QString, QVector<QVector<int>>> m_groupedFilesPoint; // 用于存储每只小鼠对应的配准点坐标
+    QMap<Step, QMap<QString, QVariant>> m_config;                  // 用于存储全局配置，包含每一步的数据设置和软件设置
+    QMap<QString, QList<QString>> m_groupedFilesStep1;             // 用于存储STEP1小鼠文件名分组后的文件，每只小鼠对应多个文件
+    QMap<QString, QVector<QVector<int>>> m_groupedFilesPointStep1; // 用于存储STEP1每只小鼠对应的配准点坐标
+
+    QMap<QString, QList<QString>> m_groupedFilesStep4;             // 用于存储STEP4小鼠文件名分组后的文件，每只小鼠对应多个文件
+    QMap<QString, QVector<QVector<int>>> m_groupedFilesPointStep4; // 用于存储STEP4每只小鼠对应的配准点坐标
 
     ConfigSaver m_configSaver;          // 用于保存配置至json文件
     CsvParser   m_csvParser;            // 用于解析csv文件
 
-    ImageList *m_imageList;             // 图片列表显示
+    ImageList *m_imageList = nullptr;   // 图片列表显示
 
-    // QMap<Step, QString> m_resultPath =  // 分析结果保存列表
-    // {
-    //     {STEP1, QDir::cleanPath(QCoreApplication::applicationDirPath() + "/data/step1")},
-    //     {STEP2, QDir::cleanPath(QCoreApplication::applicationDirPath() + "/data/step2")},
-    //     {STEP3, QDir::cleanPath(QCoreApplication::applicationDirPath() + "/data/step3")},
-    //     {STEP4, QDir::cleanPath(QCoreApplication::applicationDirPath() + "/data/step4")},
-    //     {STEP5, QDir::cleanPath(QCoreApplication::applicationDirPath() + "/data/step5")},
-    //     {STEP6, QDir::cleanPath(QCoreApplication::applicationDirPath() + "/data/step6")}
-    // };
 
     QMap<Step, QString> m_resultPath =  // 分析结果保存列表
     {
-        {STEP1, QDir::cleanPath(QDir::currentPath() + "/data/step1")},
-        {STEP2, QDir::cleanPath(QDir::currentPath() + "/data/step2")},
-        {STEP3, QDir::cleanPath(QDir::currentPath() + "/data/step3")},
-        {STEP4, QDir::cleanPath(QDir::currentPath() + "/data/step4")},
-        {STEP5, QDir::cleanPath(QDir::currentPath() + "/data/step5")},
-        {STEP6, QDir::cleanPath(QDir::currentPath() + "/data/step6")}
+        {STEP1, QDir::cleanPath(QCoreApplication::applicationDirPath() + "/data/step1")},
+        {STEP2, QDir::cleanPath(QCoreApplication::applicationDirPath() + "/data/step2")},
+        {STEP3, QDir::cleanPath(QCoreApplication::applicationDirPath() + "/data/step3")},
+        {STEP4, QDir::cleanPath(QCoreApplication::applicationDirPath() + "/data/step4")},
+        {STEP5, QDir::cleanPath(QCoreApplication::applicationDirPath() + "/data/step5")},
+        {STEP6, QDir::cleanPath(QCoreApplication::applicationDirPath() + "/data/step6")}
     };
 
+
+    QFileSystemWatcher m_fileWatcher;     // 用于查看程序运行进度，进度保存在txt实时更新
+    QMap<Step, QString> m_progressPath =  // 分析进度保存列表
+    {
+        {STEP1, QDir::cleanPath(QCoreApplication::applicationDirPath() + "/data/step1/progress.txt")},
+        {STEP2, QDir::cleanPath(QCoreApplication::applicationDirPath() + "/data/step2/progress.txt")},
+        {STEP3, QDir::cleanPath(QCoreApplication::applicationDirPath() + "/data/step3/progress.txt")},
+        {STEP4, QDir::cleanPath(QCoreApplication::applicationDirPath() + "/data/step4/progress.txt")},
+        {STEP5, QDir::cleanPath(QCoreApplication::applicationDirPath() + "/data/step5/progress.txt")},
+        {STEP6, QDir::cleanPath(QCoreApplication::applicationDirPath() + "/data/step6/progress.txt")}
+    };
+    QMap<Step, int> m_progressHistory = // 保存每一步的历史进度
+    {
+        {STEP1, 0},
+        {STEP2, 0},
+        {STEP3, 0},
+        {STEP4, 0},
+        {STEP5, 0},
+        {STEP6, 0}
+    };
 };
 
 

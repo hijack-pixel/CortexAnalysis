@@ -1,5 +1,4 @@
-﻿import QtQuick 2.15
-import QtQuick.Controls 2.0
+﻿import QtQuick 2.12
 
 Rectangle {
     id: light
@@ -8,7 +7,7 @@ Rectangle {
     property color currentColor: color
     radius: width / 2
     antialiasing: true
-    border.color: "black"
+    // border.color: "black"
 
     // 呼吸灯动画
     SequentialAnimation {
@@ -40,11 +39,12 @@ Rectangle {
         if (animation.running) {
             animation.stop();
         }
+
         light.color = newColor;
         currentColor = newColor;
         animation.start();
 
-        console.log("color set", newColor)
+        console.log("qml color set", newColor)
     }
 
 
@@ -59,3 +59,4 @@ Rectangle {
     }
 
 }
+

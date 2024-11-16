@@ -74,9 +74,9 @@ public slots:
     void run() const;
 
     /**
-     * @brief terminate 终止程序
+     * @brief abort 终止程序
      */
-    void terminate() const;
+    void abort() const;
 
 
 private slots:

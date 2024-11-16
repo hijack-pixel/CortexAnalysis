@@ -2,7 +2,16 @@
 
 #include <QApplication>
 #include <QFile>
+#include <QQmlApplicationEngine>
 #pragma execution_character_set("utf-8")
+
+
+QFile debugFile("log.txt");
+
+void customMessageHandler(QtMsgType type, const QMessageLogContext &context, const QString &msg){
+    QTextStream out(&debugFile);
+    out << msg << "\n";
+};
 
 
 int main(int argc, char *argv[])
@@ -10,6 +19,15 @@ int main(int argc, char *argv[])
     //设置输出信息的格式
     QString pattern="[%{file}] [%{function}] [%{line}] %{message}";
     qSetMessagePattern(pattern);
+
+    debugFile.open(QIODevice::WriteOnly | QIODevice::Text);
+
+    // 在程序开始时设置输出重定向
+    #ifdef REDIRECT_DEBUG_OUTPUT
+        qInstallMessageHandler(customMessageHandler);
+    #endif
+
+
 
     QApplication a(argc, argv);
 
@@ -20,10 +38,13 @@ int main(int argc, char *argv[])
         a.setStyleSheet(styleSheet);
     }
 
+    QQmlApplicationEngine engine;
+    engine.addImportPath("qrc:/qml/breathinglight.qml");
+
     // 主窗口运行
     MainWindow w;
     w.setWindowIcon(QIcon(":/icon/logo.svg"));
-    w.setWindowTitle(QString("大脑皮层成像分析软件"));
+    w.setWindowTitle(QString("大脑皮层成像分析软件 V0.1"));
     w.show();
     return a.exec();
 }
