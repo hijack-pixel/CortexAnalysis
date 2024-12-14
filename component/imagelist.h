@@ -14,6 +14,7 @@
 #include <QFileInfoList>
 #include <QPushButton>
 
+
 /**
  * @brief The ImageList class 用于显示图片列表，带多选框和配对的按钮功能布局，在当前显示item变化时发出包含图片路径信号
  */

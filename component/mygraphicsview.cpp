@@ -3,10 +3,12 @@
 #include <QApplication>
 #include <QScreen>
 #include <QDialog>
+#include <QPaintEngine>
 
 #include "mygraphicsview.h"
 
 extern QString convertImgTitle(QString title);
+extern QPixmap getEMFPixmap(const QString& filePath, bool zoomIn, int minSize);
 
 MyGraphicsView::MyGraphicsView()
 {
@@ -82,10 +84,15 @@ void MyGraphicsView::init()
     disableDraw();
 }
 
+
 void MyGraphicsView::setImgByPath(QString path)
 {
     //原图
-    QPixmap pixmap = QPixmap(path);
+    QPixmap pixmap = QPixmap();
+    if(path.endsWith(".emf"))
+        pixmap = getEMFPixmap(path);
+    else
+        pixmap.load(path);
     imgOriginSize = pixmap.size();
 
     //缩放图

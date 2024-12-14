@@ -3,6 +3,7 @@
 #include <QApplication>
 #include <QFile>
 #include <QQmlApplicationEngine>
+#include <QDateTime>
 #pragma execution_character_set("utf-8")
 
 
@@ -10,7 +11,7 @@ QFile debugFile("log.txt");
 
 void customMessageHandler(QtMsgType type, const QMessageLogContext &context, const QString &msg){
     QTextStream out(&debugFile);
-    out << msg << "\n";
+    out << QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss") << msg << "\n";
 };
 
 
@@ -28,7 +29,7 @@ int main(int argc, char *argv[])
     #endif
 
 
-
+    QApplication::setAttribute(Qt::AA_EnableHighDpiScaling);
     QApplication a(argc, argv);
 
     // 加载 qss
@@ -46,5 +47,7 @@ int main(int argc, char *argv[])
     w.setWindowIcon(QIcon(":/icon/logo.svg"));
     w.setWindowTitle(QString("大脑皮层成像分析软件 V0.1"));
     w.show();
+
+
     return a.exec();
 }

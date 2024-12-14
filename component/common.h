@@ -8,6 +8,9 @@
 #include <QDir>
 #include <QFileInfo>
 #include <QSettings>
+#include <QStringList>
+#include <QFile>
+#include <QDebug>
 
 /**
  * 这里保存了一些全局的申明以及通用的函数
@@ -31,6 +34,8 @@ enum Step
     STEP4,
     STEP5,
     STEP6,
+    SETTINGS,
+    UNKNOWN,
 };
 
 
@@ -61,5 +66,16 @@ extern QString convertImgTitle(QString& title);
 
 // 删除文件夹内容
 extern bool deleteFolderContent(const QString &folderPath);
+
+// 将EMF图片读入pixmap
+extern QPixmap getEMFPixmap(const QString& filePath, bool zoomIn = false, int minSize = 50);
+
+// 递归复制
+extern bool recursiveCopy(const QString& source, const QString& destination, const QStringList& excludeFileNames, bool allowCover);
+
+
+
+
+
 
 #endif // COMMON_H

@@ -71,7 +71,9 @@ public:
 protected:
     virtual void paintEvent(QPaintEvent *event) override;
 
-    void resizeEvent(QResizeEvent *event) override;
+    virtual void resizeEvent(QResizeEvent *event) override;
+
+    virtual void closeEvent(QCloseEvent *event) override;
 
 public slots:
     /**
@@ -257,6 +259,9 @@ private:
         {STEP5, 0},
         {STEP6, 0}
     };
+
+    QString m_configSavePath = QDir::cleanPath(QCoreApplication::applicationDirPath() + "/data/config.json");
+    QString m_analysisHistoryPath = QDir::cleanPath(QCoreApplication::applicationDirPath() + "/history_analysis");
 };
 
 

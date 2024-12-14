@@ -5,6 +5,10 @@
 #include <QDebug>
 #include <QDir>
 
+// 构造函数
+ConfigSaver::ConfigSaver() {}
+
+
 // 将枚举值转换为字符串
 QString ConfigSaver::stepToString(Step step) {
     switch (step) {
@@ -14,9 +18,24 @@ QString ConfigSaver::stepToString(Step step) {
     case STEP4: return "step4";
     case STEP5: return "step5";
     case STEP6: return "step6";
+    case SETTINGS:  return "settings";
     default: return "unknown";
     }
 }
+
+
+// 将字符串转换为枚举值
+Step ConfigSaver::stringToStep(const QString& stepString) {
+    if (stepString == "step1") return STEP1;
+    if (stepString == "step2") return STEP2;
+    if (stepString == "step3") return STEP3;
+    if (stepString == "step4") return STEP4;
+    if (stepString == "step5") return STEP5;
+    if (stepString == "step6") return STEP6;
+    if (stepString == "settings") return SETTINGS;
+    return UNKNOWN;
+}
+
 
 // 递归函数将QVariant转换为QJsonValue
 QJsonValue ConfigSaver::variantToJsonValue(const QVariant &variant) {
@@ -104,9 +123,6 @@ QJsonValue ConfigSaver::variantToJsonValue(const QVariant &variant) {
     }
 }
 
-// 构造函数
-ConfigSaver::ConfigSaver() {}
-
 
 // 成员函数实现
 void ConfigSaver::saveConfig(const QMap<Step, QMap<QString, QVariant>>& config,const QString& savePath) {
@@ -136,3 +152,44 @@ void ConfigSaver::saveConfig(const QMap<Step, QMap<QString, QVariant>>& config,c
     file.write(jsonData);
     file.close();
 }
+
+
+
+// 从JSON文件加载配置
+bool ConfigSaver::loadConfig(QMap<Step, QMap<QString, QVariant>>& config, const QString& loadPath) {
+    QFile file(loadPath);
+    if (!file.open(QIODevice::ReadOnly)) {
+        qDebug() << "Cannot open file for reading:" << file.errorString() << file.fileName();
+        return false;
+    }
+
+    QByteArray jsonData = file.readAll();
+    file.close();
+
+    QJsonDocument doc = QJsonDocument::fromJson(jsonData);
+    if (doc.isNull() || !doc.isObject()) {
+        qDebug() << "Invalid JSON document";
+        return false;
+    }
+
+    QJsonObject rootObject = doc.object();
+    for (auto it = rootObject.constBegin(); it != rootObject.constEnd(); ++it) {
+        Step step = stringToStep(it.key());
+        if (step == UNKNOWN) {
+            qDebug() << "Unknown step:" << it.key();
+            continue;
+        }
+
+        QMap<QString, QVariant> stepSettings;
+        QJsonObject stepObject = it.value().toObject();
+        for (auto sit = stepObject.constBegin(); sit != stepObject.constEnd(); ++sit) {
+            stepSettings[sit.key()] = sit.value().toVariant();
+        }
+        config[step] = stepSettings;
+    }
+
+    return true;
+}
+
+
+

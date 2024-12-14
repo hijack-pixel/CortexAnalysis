@@ -71,9 +71,9 @@ QString CommandProcess::wrapperHTML(QString str, LOG log)
     case LOG::SUCCESS:
         return QString("<span style='font-size: 10pt; color: green;'>%1</span>").arg(str);
     case LOG::ERROR:
-        return QString("<span style='font-size: 10pt; color: red;'>%1</span>").arg(str);
+        return QString("<span style='font-size: 10pt; color: red; '>%1</span>").arg(str);
     case LOG::INFO:
-        return QString("<span style='font-size: 10pt; color: black;'>%1</span>").arg(str);
+        return QString("<span style='font-size: 10pt; color: black; '>%1</span>").arg(str);
     }
 }
 
@@ -100,54 +100,65 @@ void CommandProcess::abort() const
                     .arg(isRunning()?"Running":"Not Running", pid) << m_program << m_args;
     if(isRunning())
     {
-        m_process->terminate();
-
-        if (!m_process->waitForFinished(500))
         {
-            qDebug() << "terminate failed, force kill: " << m_program << m_args;
-            m_process->kill();
+        // m_process->terminate();
+
+        // if (!m_process->waitForFinished(500))
+        // {
+        //     qDebug() << "terminate failed, force kill: " << m_program << m_args;
+        //     m_process->kill();
+        // }
+
+        // if(m_process->waitForFinished(500))
+        //     qDebug() << "Kill successfull: " << m_program << m_args;
+
+        // // 杀掉子进程，octave.exe会唤起 conhost.exe octave-gui.exe，杀掉octave-gui.exe，conhost.exe自动终止
+        // QProcess processKillChild;
+        // connect(&processKillChild, &QProcess::readyReadStandardOutput, this, [&](){
+        //     QProcess *process = qobject_cast<QProcess *>(sender());
+        //     if (process)
+        //     {
+        //         QProcess taskKillProcess;
+        //         QString output = process->readAllStandardOutput();// 输出示例: "ProcessId\n9324\n"
+        //         QStringList lines = output.split("\n");
+        //         qDebug() << "SubProcess found: " << lines.join(" ");
+        //         foreach (const QString &line, lines)
+        //         {
+        //             if (line.startsWith("ProcessId"))
+        //                 continue; // 跳过标题行
+
+        //             if (!line.isEmpty()) // 解析 PID
+        //             {
+        //                 bool ok;
+        //                 int pid = line.toInt(&ok);
+        //                 if (ok)
+        //                 {
+        //                     taskKillProcess.start("taskkill", {"/PID", QString::number(pid), "/F" });
+        //                     taskKillProcess.waitForFinished();
+        //                     qDebug() << QString(taskKillProcess.readAllStandardOutput());
+        //                     qDebug() << " kill octave-gui.exe PID:" << pid;
+        //                 }
+        //             }
+        //         }
+        //     }});
+        // QString program = "wmic";
+        // QStringList arguments;
+        // arguments << "process"
+        //           << "where" << QString("ParentProcessId=%1 and Name='%2'").arg(pid).arg("octave-gui.exe")
+        //           << "get" << "ProcessId";
+        // processKillChild.start(program, arguments);
+        // processKillChild.waitForFinished();
         }
 
-        if(m_process->waitForFinished(500))
-            qDebug() << "Kill successfull: " << m_program << m_args;
-
-        // 杀掉子进程，octave.exe会唤起 conhost.exe octave-gui.exe，杀掉octave-gui.exe，conhost.exe自动终止
-        QProcess processKillChild;
-        connect(&processKillChild, &QProcess::readyReadStandardOutput, this, [&](){
-            QProcess *process = qobject_cast<QProcess *>(sender());
-            if (process)
-            {
-                QProcess taskKillProcess;
-                QString output = process->readAllStandardOutput();// 输出示例: "ProcessId\n9324\n"
-                QStringList lines = output.split("\n");
-                qDebug() << "SubProcess found: " << lines.join(" ");
-                foreach (const QString &line, lines)
-                {
-                    if (line.startsWith("ProcessId"))
-                        continue; // 跳过标题行
-
-                    if (!line.isEmpty()) // 解析 PID
-                    {
-                        bool ok;
-                        int pid = line.toInt(&ok);
-                        if (ok)
-                        {
-                            taskKillProcess.start("taskkill", {"/PID", QString::number(pid), "/F" });
-                            taskKillProcess.waitForFinished();
-                            qDebug() << QString(taskKillProcess.readAllStandardOutput());
-                            qDebug() << " kill octave-gui.exe PID:" << pid;
-                        }
-                    }
-                }
-            }});
-        QString program = "wmic";
+        m_process->terminate();
+        QProcess processTaskill;
+        QString program = "taskkill";
         QStringList arguments;
-        arguments << "process"
-                  << "where" << QString("ParentProcessId=%1 and Name='%2'").arg(pid).arg("octave-gui.exe")
-                  << "get" << "ProcessId";
-        processKillChild.start(program, arguments);
-        processKillChild.waitForFinished();
-
+        arguments << "/PID" << pid << "/T" << "/F";
+        processTaskill.start(program, arguments);
+        processTaskill.waitForFinished();
+        qDebug() << QString::fromLocal8Bit(processTaskill.readAllStandardOutput());
+        qDebug() << QString::fromLocal8Bit(processTaskill.readAllStandardError());
     }
     else
     {

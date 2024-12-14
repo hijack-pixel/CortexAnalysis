@@ -28,6 +28,7 @@
 #include <QProgressBar>
 #include <QFileSystemWatcher>
 
+#include "FramelessHelper.h"
 
 
 extern QSettings globalSettings;
@@ -35,6 +36,10 @@ extern const QMap<QString, QString> imgTitleMap;
 extern const QMap<Step, QString> titleMap;
 extern bool deleteFolderContent(const QString &folderPath);
 extern void printGlobalSettings();
+extern bool recursiveCopy(const QString& source, const QString& destination, const QStringList& excludeFileNames, bool allowCover);
+
+
+
 
 // 静态static成员必需在类外初始化，类的静态成员变量需要在类外分配内存空间
 Step MainWindow::m_currentDisplay = Step::STEP1;
@@ -48,8 +53,10 @@ MainWindow::MainWindow(QWidget *parent): QMainWindow(parent), ui(new Ui::MainWin
     pixmapTitleLogo = new QPixmap(":icon/title.png");
     QPixmap scaledPixmap = pixmapTitleLogo->scaled(ui->labelLogoText->size(), Qt::KeepAspectRatio, Qt::SmoothTransformation);
     ui->labelLogoText->setPixmap(scaledPixmap);
-    // this->setWindowFlags(windowFlags()  | Qt::FramelessWindowHint);//无边框
-    // this->setAttribute(Qt::WA_TranslucentBackground, true);//窗体背景全透明
+
+    m_configSaver.loadConfig(m_config, m_configSavePath);
+
+    m_config[SETTINGS]["history_analysis_directory"] = m_analysisHistoryPath;
 
     // 设置分析步骤名和分析结果保存目录
     m_config[STEP1]["module"] = "Registration2ConnectMatrix";
@@ -71,7 +78,7 @@ MainWindow::MainWindow(QWidget *parent): QMainWindow(parent), ui(new Ui::MainWin
     qDebug() << QDir::currentPath() << QCoreApplication::applicationDirPath();
     foreach (const auto& path, m_resultPath) {
         qDebug() << "Attempt to delete directory content: " << path;
-        deleteFolderContent(path);
+        // deleteFolderContent(path);
     }
 
 
@@ -164,14 +171,28 @@ MainWindow::MainWindow(QWidget *parent): QMainWindow(parent), ui(new Ui::MainWin
 
 
     // 初始化octave 6步的分析代码
-    QString octavePath = QDir::cleanPath(QCoreApplication::applicationDirPath() + "/octave/bin/octave.exe");
+    // QString octavePath = QDir::cleanPath(QCoreApplication::applicationDirPath() + "/octave/bin/octave.exe");
+    QString octavePath = QDir::cleanPath(QCoreApplication::applicationDirPath() + "/data/MyExecutable.exe");
     QString octaveRunningPath = QDir::cleanPath(QCoreApplication::applicationDirPath() + "/data");
-    addNewThread(octavePath, {"step1.m"}, octaveRunningPath);
-    addNewThread(octavePath, {"step2.m"}, octaveRunningPath);
-    addNewThread(octavePath, {"step3.m"}, octaveRunningPath);
-    addNewThread(octavePath, {"step4.m"}, octaveRunningPath);
-    addNewThread(octavePath, {"step5.m"}, octaveRunningPath);
-    addNewThread(octavePath, {"step6.m"}, octaveRunningPath);
+    QDir octaveRunningDir(octaveRunningPath);
+    if (!octaveRunningDir.exists()) {
+        if (!octaveRunningDir.mkpath(octaveRunningDir.absolutePath())) {
+            qDebug() << "Failed to create directory:" << octaveRunningDir.absolutePath();
+            return;
+        }
+    }
+    addNewThread(octavePath, {"1"}, octaveRunningPath);
+    addNewThread(octavePath, {"2"}, octaveRunningPath);
+    addNewThread(octavePath, {"3"}, octaveRunningPath);
+    addNewThread(octavePath, {"4"}, octaveRunningPath);
+    addNewThread(octavePath, {"5"}, octaveRunningPath);
+    addNewThread(octavePath, {"6"}, octaveRunningPath);
+    // addNewThread(octavePath, {"step1.m"}, octaveRunningPath);
+    // addNewThread(octavePath, {"step2.m"}, octaveRunningPath);
+    // addNewThread(octavePath, {"step3.m"}, octaveRunningPath);
+    // addNewThread(octavePath, {"step4.m"}, octaveRunningPath);
+    // addNewThread(octavePath, {"step5.m"}, octaveRunningPath);
+    // addNewThread(octavePath, {"step6.m"}, octaveRunningPath);
 
 
 
@@ -227,7 +248,6 @@ MainWindow::MainWindow(QWidget *parent): QMainWindow(parent), ui(new Ui::MainWin
 
 
 
-
     // 初始化数据设置部分
     m_layoutDataSetting = new QStackedLayout(ui->groupBoxData);
     m_widgetDataSetting_1 = new QWidget();
@@ -279,6 +299,7 @@ MainWindow::MainWindow(QWidget *parent): QMainWindow(parent), ui(new Ui::MainWin
         qDebug() << settingRect << btnRect;
     });
 
+    // 默认显示当前进度也就是0
     on_updateProgressBar(m_progressPath[m_currentDisplay]);
 }
 
@@ -325,33 +346,6 @@ MainWindow::~MainWindow()
     delete m_imageList;
 
     delete pixmapTitleLogo;
-}
-
-
-void MainWindow::paintEvent(QPaintEvent *event)
-{
-
-}
-
-void MainWindow::resizeEvent(QResizeEvent *event)
-{
-    // if (pixmapTitleLogo != nullptr)
-    // {
-    //     qDebug() << ui->labelLogoText->size();
-    //     QPixmap scaledPixmap = pixmapTitleLogo->scaled(ui->labelLogoText->size(), Qt::KeepAspectRatio, Qt::SmoothTransformation);
-    //     ui->labelLogoText->setPixmap(scaledPixmap);
-    // }
-
-    // 更新开始运行按钮位置，因为他是浮动显示的
-    QRect settingRect = ui->groupBoxData->geometry();
-    QSize btnSize = ui->pushButtonRun->size();
-    QRect btnRect;
-    int padding = 5;
-    btnRect.setLeft(settingRect.width() - btnSize.width() - padding*2 + settingRect.left() );
-    btnRect.setTop(settingRect.height() - btnSize.height() - padding*2 + settingRect.top() );
-    btnRect.setWidth(btnSize.width() + padding*2);
-    btnRect.setHeight(btnSize.height() + padding*2);
-    ui->pushButtonRun->setGeometry(btnRect);
 }
 
 
@@ -621,16 +615,83 @@ void MainWindow::on_aboutAction()
 
 void MainWindow::on_exitAction()
 {
-    QMessageBox::StandardButton resBtn = QMessageBox::question(this,
-                                                               tr("退出程序"),
-                                                               tr("确认退出程序？"),
-                                                               QMessageBox::No | QMessageBox::Yes,
-                                                               QMessageBox::No);
-    if (resBtn == QMessageBox::Yes)
+    QMessageBox msgBox;
+    msgBox.setText("你想在退出前保存文件吗？");
+    QPushButton *saveDefaultButton = msgBox.addButton(tr("默认保存"), QMessageBox::AcceptRole);
+    QPushButton *saveCustomButton = msgBox.addButton(tr("自选保存"), QMessageBox::AcceptRole);
+    QPushButton *discardButton = msgBox.addButton(tr("不保存"), QMessageBox::AcceptRole);
+    QPushButton *cancelButton = msgBox.addButton(tr("取消"), QMessageBox::RejectRole);
+    msgBox.setDefaultButton(saveDefaultButton);
+
+    auto saveFileToDefaultLocation = [this](){
+        QDir dir(m_config[SETTINGS]["history_analysis_directory"].toString());
+
+        // 如果目录不存在，则创建
+        if (!dir.exists()) {
+            if (!dir.mkpath(dir.absolutePath())) {
+                qDebug() << "Failed to create directory:" << dir.absolutePath();
+                return;
+            }
+        }
+
+        // 创建时间文件夹
+        QString timeFolder = dir.absolutePath() + "/" + QDateTime::currentDateTime().toString("yyyy-MM-dd_HH-mm-ss");
+        QDir timeDir(timeFolder);
+        if (!timeDir.exists() && !timeDir.mkpath(timeFolder)) {
+            qDebug() << "Failed to create time folder:" << timeFolder;
+            return;
+        }
+
+        bool ret;
+        ret = recursiveCopy(QDir::cleanPath(QCoreApplication::applicationDirPath() + "/data"),
+                            timeFolder,
+                            QStringList({"progress.txt", "config.json"}),
+                            true);
+        if(!ret) qDebug() << QString("Copy %1 to %2, some mistankens happend....")
+                            .arg(QDir::cleanPath(QCoreApplication::applicationDirPath() + "/data" ), timeFolder);
+    };
+
+    auto saveFileToCustomLocation = [this](){
+        QString directory = QFileDialog::getExistingDirectory(this,
+                                                              "选择保存目录",
+                                                              QCoreApplication::applicationDirPath(),
+                                                              QFileDialog::ShowDirsOnly | QFileDialog::DontResolveSymlinks);
+        if (directory.isEmpty()) {
+            qDebug() << "用户取消了目录选择。";
+            return;
+        }
+        qDebug() << "选择的保存目录是：" << directory;
+
+        bool ret;
+        ret = recursiveCopy(QDir::cleanPath(QCoreApplication::applicationDirPath() + "/data"),
+                            directory,
+                            QStringList({"progress.txt", "config.json"}),
+                            true);
+        if(!ret) qDebug() << QString("Copy %1 to %2, some mistankens happend....")
+                            .arg(QDir::cleanPath(QCoreApplication::applicationDirPath() + "/data" ), directory);
+    };
+
+    int ret = msgBox.exec();
+    qDebug() << ret;
+
+    if(msgBox.clickedButton() == saveDefaultButton)
+    {
+        saveFileToDefaultLocation();
+        qApp->quit();
+    }
+    else if(msgBox.clickedButton() == saveCustomButton)
+    {
+        saveFileToCustomLocation();
+        qApp->quit();
+    }
+    else if(msgBox.clickedButton() == discardButton)
     {
         qApp->quit();
     }
-
+    else if(msgBox.clickedButton() == cancelButton)
+    {
+        return;
+    }
 }
 
 
@@ -966,11 +1027,11 @@ void MainWindow::initDataSettingPage1()
             /********************************************************************************************/
             /********************************************************************************************/
             /********************************************************************************************/
-            foreach (auto key, m_groupedFilesStep1.keys())  // 目前仅支持一个小鼠3个tif
-                while(m_groupedFilesStep1[key].length()>3)  // 目前仅支持一个小鼠3个tif
-                {                                      // 目前仅支持一个小鼠3个tif
-                    m_groupedFilesStep1[key].pop_back();    // 目前仅支持一个小鼠3个tif
-                }                                      // 目前仅支持一个小鼠3个tif
+            // foreach (auto key, m_groupedFilesStep1.keys())  // 目前仅支持一个小鼠3个tif
+            //     while(m_groupedFilesStep1[key].length()>3)  // 目前仅支持一个小鼠3个tif
+            //     {                                      // 目前仅支持一个小鼠3个tif
+            //         m_groupedFilesStep1[key].pop_back();    // 目前仅支持一个小鼠3个tif
+            //     }                                      // 目前仅支持一个小鼠3个tif
             /********************************************************************************************/
             /********************************************************************************************/
             /********************************************************************************************/
@@ -997,6 +1058,7 @@ void MainWindow::initDataSettingPage1()
             }
 
             // 初始化配准坐标
+            m_groupedFilesPointStep1.clear();
             for (auto it = m_groupedFilesStep1.constBegin(); it != m_groupedFilesStep1.constEnd(); ++it) {
                 QVector<QVector<int>> points(2, QVector<int>(2, -1));
                 m_groupedFilesPointStep1.insert(it.key(), points);
@@ -1671,8 +1733,6 @@ void MainWindow::on_widgetContainerStep_6_clicked()
 
 void MainWindow::on_processStart()
 {
-    QString configSavePath = QDir::cleanPath(QCoreApplication::applicationDirPath() + "/data/config.json");
-
     qDebug() << QString("Process isRunning:(%1)").arg(m_cmdProcessList[m_currentDisplay]->isRunning());
     if(m_cmdProcessList[m_currentDisplay]->isRunning())  // 正在跑,此时功能是终止
     {
@@ -1728,7 +1788,7 @@ void MainWindow::on_processStart()
 
             m_config[STEP1]["point"] = QVariant::fromValue(m_groupedFilesPointStep1);
 
-            m_configSaver.saveConfig(m_config, configSavePath);
+            m_configSaver.saveConfig(m_config, m_configSavePath);
 
             emit cmdStartRun();
             ui->pushButtonRun->setText(tr("暂停"));
@@ -1758,7 +1818,7 @@ void MainWindow::on_processStart()
                 return;
             }
 
-            m_configSaver.saveConfig(m_config, configSavePath);
+            m_configSaver.saveConfig(m_config, m_configSavePath);
 
             emit cmdStartRun();
             ui->pushButtonRun->setText(tr("暂停"));
@@ -1782,7 +1842,7 @@ void MainWindow::on_processStart()
                 return;
             }
 
-            m_configSaver.saveConfig(m_config, configSavePath);
+            m_configSaver.saveConfig(m_config, m_configSavePath);
 
             emit cmdStartRun();
             ui->pushButtonRun->setText(tr("暂停"));
@@ -1813,7 +1873,7 @@ void MainWindow::on_processStart()
             }
 
             m_config[STEP4]["point"] = QVariant::fromValue(m_groupedFilesPointStep4);
-            m_configSaver.saveConfig(m_config, configSavePath);
+            m_configSaver.saveConfig(m_config, m_configSavePath);
 
             emit cmdStartRun();
             ui->pushButtonRun->setText(tr("暂停"));
@@ -1830,7 +1890,7 @@ void MainWindow::on_processStart()
                 return;
             }
 
-            m_configSaver.saveConfig(m_config, configSavePath);
+            m_configSaver.saveConfig(m_config, m_configSavePath);
 
             emit cmdStartRun();
             ui->pushButtonRun->setText(tr("暂停"));
@@ -1847,7 +1907,7 @@ void MainWindow::on_processStart()
                 return;
             }
 
-            m_configSaver.saveConfig(m_config, configSavePath);
+            m_configSaver.saveConfig(m_config, m_configSavePath);
 
             emit cmdStartRun();
             ui->pushButtonRun->setText(tr("暂停"));
@@ -1898,6 +1958,42 @@ void MainWindow::on_updateImageList()
     default:
         break;
     }
+}
+
+
+
+void MainWindow::paintEvent(QPaintEvent *event)
+{
+
+}
+
+void MainWindow::resizeEvent(QResizeEvent *event)
+{
+    // if (pixmapTitleLogo != nullptr)
+    // {
+    //     qDebug() << ui->labelLogoText->size();
+    //     QPixmap scaledPixmap = pixmapTitleLogo->scaled(ui->labelLogoText->size(), Qt::KeepAspectRatio, Qt::SmoothTransformation);
+    //     ui->labelLogoText->setPixmap(scaledPixmap);
+    // }
+
+    // 更新开始运行按钮位置，因为他是浮动显示的
+    QRect settingRect = ui->groupBoxData->geometry();
+    QSize btnSize = ui->pushButtonRun->size();
+    QRect btnRect;
+    int padding = 5;
+    btnRect.setLeft(settingRect.width() - btnSize.width() - padding*2 + settingRect.left() );
+    btnRect.setTop(settingRect.height() - btnSize.height() - padding*2 + settingRect.top() );
+    btnRect.setWidth(btnSize.width() + padding*2);
+    btnRect.setHeight(btnSize.height() + padding*2);
+    ui->pushButtonRun->setGeometry(btnRect);
+}
+
+
+void MainWindow::closeEvent(QCloseEvent *event)
+{
+    on_exitAction();   // 如果退出在这个里面就退出了
+    event->ignore();   // 还是再想想不退出吧
+
 }
 
 

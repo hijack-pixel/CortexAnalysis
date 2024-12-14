@@ -19,7 +19,10 @@ public:
 
     void saveConfig(const QMap<Step, QMap<QString, QVariant>>& config, const QString& savePath);
 
+    bool loadConfig(QMap<Step, QMap<QString, QVariant>>& config, const QString& loadPath);
+
 private:
+    static Step stringToStep(const QString& stepString);
     static QString stepToString(Step step);
     static QJsonValue variantToJsonValue(const QVariant &variant);
 };

@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>932</width>
-    <height>922</height>
+    <width>850</width>
+    <height>800</height>
    </rect>
   </property>
   <property name="minimumSize">
@@ -19,7 +19,19 @@
   <property name="windowTitle">
    <string>MainWindow</string>
   </property>
+  <property name="styleSheet">
+   <string notr="true">#centralwidget, #statusbar, #menubar{
+background-color: rgb(247, 247, 247);
+}
+
+ #menubar{
+background-color: #f0f0f0;
+}</string>
+  </property>
   <widget class="QWidget" name="centralwidget">
+   <property name="styleSheet">
+    <string notr="true"/>
+   </property>
    <layout class="QVBoxLayout" name="verticalLayout_3">
     <property name="spacing">
      <number>0</number>
@@ -31,7 +43,7 @@
      <number>0</number>
     </property>
     <property name="rightMargin">
-     <number>0</number>
+     <number>9</number>
     </property>
     <property name="bottomMargin">
      <number>0</number>
@@ -870,7 +882,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>932</width>
+     <width>850</width>
      <height>21</height>
     </rect>
    </property>

@@ -1,7 +1,9 @@
 ﻿#pragma execution_character_set("utf-8")
 #include "common.h"
 #include <QDebug>
-
+#include <QEmfRenderer.h>
+#include <QPainter>
+#include <Windows.h>
 
 QSettings globalSettings(QSettings::IniFormat, QSettings::UserScope, "BigData Lab", "Mouse Brain Analysis");
 
@@ -152,6 +154,98 @@ extern bool deleteFolderContent(const QString &folderPath) {
             }
         }
     }
+    return true;
+}
+
+extern QPixmap getEMFPixmap(const QString& filePath, bool zoomIn, int minSize)
+{
+    // Load EMF using Windows API
+    HENHMETAFILE hEmf = GetEnhMetaFile(filePath.toStdWString().c_str());
+    if (!hEmf) {
+        qWarning("Failed to load EMF file.");
+        return QPixmap();
+    }
+
+    // Get EMF dimensions
+    ENHMETAHEADER emfHeader;
+    if (!GetEnhMetaFileHeader(hEmf, sizeof(ENHMETAHEADER), &emfHeader)) {
+        qWarning("Failed to get EMF header.");
+        DeleteEnhMetaFile(hEmf);
+        return QPixmap();
+    }
+
+    int width = emfHeader.rclBounds.right - emfHeader.rclBounds.left;
+    int height = emfHeader.rclBounds.bottom - emfHeader.rclBounds.top;
+
+    QSize size(width, height);
+    if(zoomIn == true)
+    {
+        size.scale(minSize, minSize, Qt::KeepAspectRatio);
+    }
+
+    QPixmap pix(size);
+    pix.fill(QColor(Qt::transparent));
+
+    QPainter painter(&pix);
+    QEmf::QEmfRenderer renderer(painter, size, true);
+    renderer.load(filePath);
+
+    return pix;
+}
+
+
+
+bool recursiveCopy(const QString& source,
+                   const QString& destination,
+                   const QStringList& excludeFileNames,
+                   bool allowCover) {
+    QDir sourceDir(source);
+    if (!sourceDir.exists()) {
+        qWarning() << "Source directory does not exist:" << source;
+        return false;
+    }
+
+    QDir destDir(destination);
+    if (!destDir.exists()) {
+        if (!destDir.mkpath(destination)) {
+            qWarning() << "Failed to create destination directory:" << destination;
+            return false;
+        }
+    }
+
+    const QFileInfoList entries = sourceDir.entryInfoList(QDir::NoDotAndDotDot | QDir::AllEntries);
+
+    for (const QFileInfo& entry : entries) {
+        QString sourcePath = entry.filePath();
+        QString destPath = destination + QDir::separator() + entry.fileName();
+
+        if (excludeFileNames.contains(entry.fileName())) {
+            qDebug() << "Skipping excluded file or directory:" << sourcePath;
+            continue;
+        }
+
+        if (entry.isDir()) {
+            // Recursively copy subdirectories
+            if (!recursiveCopy(sourcePath, destPath, excludeFileNames, allowCover)) {
+                return false;
+            }
+        } else {
+            // Handle files
+            QFile destFile(destPath);
+            if (destFile.exists() && !allowCover) {
+                qDebug() << "Skipping existing file due to no-overwrite policy:" << destPath;
+                continue;
+            }
+
+            if (!QFile::copy(sourcePath, destPath)) {
+                qWarning() << "Failed to copy file:" << sourcePath << "to" << destPath;
+                return false;
+            }
+
+            qDebug() << "Copied file:" << sourcePath << "to" << destPath;
+        }
+    }
+
     return true;
 }
 

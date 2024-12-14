@@ -5,6 +5,8 @@ greaterThan(QT_MAJOR_VERSION, 4): QT += widgets quickwidgets qml quick quickcont
 CONFIG += c++17
 RC_ICONS  = logo.ico
 
+TARGET=CortexAnalysis
+
 # You can make your code fail to compile if it uses deprecated APIs.
 # In order to do so, uncomment the following line.
 #DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs deprecated before Qt 6.0.0
@@ -14,7 +16,13 @@ CONFIG(release, debug|release) {
     DEFINES += REDIRECT_DEBUG_OUTPUT
 }
 
+LIBS += -lgdi32 -luser32
 
+INCLUDEPATH += component/libqemf
+SOURCES += $$files($$PWD/component/libqemf/*.cpp, true)
+HEADERS += $$files($$PWD/component/libqemf/*.h, true)
+
+include(component/FramelessHelper/FramelessHelper.pri)
 
 SOURCES += \
     component/canvaseitembase.cpp \

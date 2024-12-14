@@ -22,6 +22,8 @@
 #include <QDateTime>
 #include <QPushButton>
 #include <QHBoxLayout>
+#include <windows.h>
+
 #include "canvaseitembase.h"
 #include "common.h"
 
@@ -39,6 +41,7 @@ public:
     ~MyGraphicsView();
 
     void init();
+    // QPixmap getEMFPixmap(const QString& emfFilePath);
     void setImgByPath(QString path);
     void enableRectDraw();
     void enableFreeDraw();
