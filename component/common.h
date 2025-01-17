@@ -71,7 +71,7 @@ extern bool deleteFolderContent(const QString &folderPath);
 extern QPixmap getEMFPixmap(const QString& filePath, bool zoomIn = false, int minSize = 50);
 
 // 递归复制
-extern bool recursiveCopy(const QString& source, const QString& destination, const QStringList& excludeFileNames, bool allowCover);
+extern bool recursiveCopy(const QString& source, const QString& destination, const QStringList& excludeFileNames, const QStringList& excludeDirNames, bool allowCover);
 
 
 

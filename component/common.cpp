@@ -198,6 +198,7 @@ extern QPixmap getEMFPixmap(const QString& filePath, bool zoomIn, int minSize)
 bool recursiveCopy(const QString& source,
                    const QString& destination,
                    const QStringList& excludeFileNames,
+                   const QStringList& excludeDirNames,
                    bool allowCover) {
     QDir sourceDir(source);
     if (!sourceDir.exists()) {
@@ -224,9 +225,14 @@ bool recursiveCopy(const QString& source,
             continue;
         }
 
-        if (entry.isDir()) {
+        if (entry.isDir() ) {
+            if (excludeDirNames.contains(entry.fileName())){
+                qDebug() << "Skipping excluded file or directory:" << sourcePath;
+                continue;
+            }
+
             // Recursively copy subdirectories
-            if (!recursiveCopy(sourcePath, destPath, excludeFileNames, allowCover)) {
+            if (!recursiveCopy(sourcePath, destPath, excludeFileNames, excludeDirNames, allowCover)) {
                 return false;
             }
         } else {

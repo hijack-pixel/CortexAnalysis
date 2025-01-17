@@ -78,6 +78,7 @@ void MyGraphicsView::init()
     layout->setAlignment(Qt::AlignLeft | Qt::AlignTop);
     widgetTittle->setLayout(layout);
     widgetTittle->raise();
+    widgetTittle->setAttribute(Qt::WA_TranslucentBackground); // 设置标签背景透明
 
     setScene(scene);
     // enableFreeDraw();

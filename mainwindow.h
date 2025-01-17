@@ -5,9 +5,6 @@
 #include "./component/common.h"
 #include "./component/configsaver.h"
 #include "./component/imagelist.h"
-#include "./component/comboxitemdelegate.h"
-#include "./component/clickablewidget.h"
-#include "./component/settingsdialog.h"
 #include "./component/csvparser.h"
 
 #include <QMainWindow>
@@ -59,6 +56,45 @@ public:
      * @param stepCur                当前显示的
      */
     void updateWidgetStepCheck(Step stepPre, Step stepCur);
+
+    /**
+     * @brief getGroupFiles  根据文件列表获取依据前缀名分组好的QMap
+     * @param fileList       输入的文件列表
+     * @param groupFiles     引用保存依据前缀名分组好的QMap
+     * @return               返回成功与否
+     */
+    bool getGroupFiles(QFileInfoList fileList, QMap<QString, QList<QString>>& groupFiles);
+
+    /**
+     * @brief isGroupFilesCompleted  检查分组文件是否每组文件数量相等或者不为0
+     * @param groupFiles             待检查分组文件
+     * @return                       返回是否全部正确设置
+     */
+    bool isGroupFilesCompleted(const QMap<QString, QList<QString>>& groupFiles);
+
+    /**
+     * @brief getGroupFilesPoints   输入txt路径，解析返回QMap点坐标
+     * @param csvParser             csv解析器引用
+     * @param path                  txt路径
+     * @param groupPoints           引用解析返回QMap点坐标
+     * @return                      返回成功与否
+     */
+    bool getGroupFilesPoints(CsvParser& csvParser, QString path, QMap<QString, QVector<QVector<int>>>& groupPoints);
+
+    /**
+     * @brief isGroupFilesPointsCompleted  检查分组坐标是否全部设置了
+     * @param groupPoints                  待检查的分组坐标
+     * @return                             返回是否全部设置
+     */
+    bool isGroupFilesPointsCompleted(const QMap<QString, QVector<QVector<int>>>& groupPoints);
+
+    /**
+     * @brief showGroupDataDetail  获取分组文件以及坐标的聚合信息字符串
+     * @param groupFiles           分组文件
+     * @param groupPoints          分组坐标
+     * @return                     聚合信息字符串
+     */
+    QString getGroupDataDetail(const QMap<QString, QList<QString>>& groupFiles, const QMap<QString, QVector<QVector<int>>>& groupPoints);
 
     void initDataSettingPage1();
     void initDataSettingPage2();
@@ -223,6 +259,15 @@ private:
     QMap<QString, QList<QString>> m_groupedFilesStep4;             // 用于存储STEP4小鼠文件名分组后的文件，每只小鼠对应多个文件
     QMap<QString, QVector<QVector<int>>> m_groupedFilesPointStep4; // 用于存储STEP4每只小鼠对应的配准点坐标
 
+    QMap<QString, QVariant> m_groupedFilesStep5;              // QVariant保存 A B 组别
+    QMap<QString, QList<QString>> m_groupedFilesStep5A;
+    QMap<QString, QList<QString>> m_groupedFilesStep5B;
+
+    QMap<QString, QVariant> m_groupedFilesPointStep5;      // QVariant保存 A B 组别
+    QMap<QString, QVector<QVector<int>>> m_groupedFilesPointStep5A;
+    QMap<QString, QVector<QVector<int>>> m_groupedFilesPointStep5B;
+
+
     ConfigSaver m_configSaver;          // 用于保存配置至json文件
     CsvParser   m_csvParser;            // 用于解析csv文件
 
@@ -262,6 +307,14 @@ private:
 
     QString m_configSavePath = QDir::cleanPath(QCoreApplication::applicationDirPath() + "/data/config.json");
     QString m_analysisHistoryPath = QDir::cleanPath(QCoreApplication::applicationDirPath() + "/history_analysis");
+
+    QString m_pointTxtImportHelp = tr(
+        "一行对应一只个小鼠的坐标，以英文逗号隔开，行尾不要有标点符号。\n"
+        "格式：小鼠文件前缀名,X1,Y1,X2,Y2\n"
+        "示例（下面展示了 3 只小鼠的配准坐标）：\n"
+        "1-CON F 1,122,100,126,228\n"
+        "1-CON F 2,122,112,132,226\n"
+        "2-CON F 1,126,88,130,212\n");
 };
 
 

@@ -45,7 +45,7 @@ int main(int argc, char *argv[])
     // 主窗口运行
     MainWindow w;
     w.setWindowIcon(QIcon(":/icon/logo.svg"));
-    w.setWindowTitle(QString("大脑皮层成像分析软件 V0.1"));
+    w.setWindowTitle(QString("大脑皮层成像分析软件 V0.3"));
     w.show();
 
 

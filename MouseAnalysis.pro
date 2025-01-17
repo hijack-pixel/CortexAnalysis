@@ -19,8 +19,10 @@ CONFIG(release, debug|release) {
 LIBS += -lgdi32 -luser32
 
 INCLUDEPATH += component/libqemf
-SOURCES += $$files($$PWD/component/libqemf/*.cpp, true)
-HEADERS += $$files($$PWD/component/libqemf/*.h, true)
+SOURCES += $$files($$PWD/component/libqemf/*.cpp, true) \
+    component/dualslider.cpp
+HEADERS += $$files($$PWD/component/libqemf/*.h, true) \
+    component/dualslider.h
 
 include(component/FramelessHelper/FramelessHelper.pri)
 
