@@ -57,6 +57,9 @@ MainWindow::MainWindow(QWidget *parent): QMainWindow(parent), ui(new Ui::MainWin
 {
     ui->setupUi(this);
 
+    // 初始化类型
+    qRegisterMetaType<FileType>();
+
     pixmapTitleLogo = new QPixmap(":icon/title.png");
     QPixmap scaledPixmap = pixmapTitleLogo->scaled(ui->labelLogoText->size(), Qt::KeepAspectRatio, Qt::SmoothTransformation);
     ui->labelLogoText->setPixmap(scaledPixmap);
@@ -87,8 +90,11 @@ MainWindow::MainWindow(QWidget *parent): QMainWindow(parent), ui(new Ui::MainWin
     // 删除历史分析结果
     qDebug() << QDir::currentPath() << QCoreApplication::applicationDirPath();
     foreach (const auto& path, m_resultPath) {
-        qDebug() << "Attempt to delete directory content: " << path;
-        deleteFolderContent(path);
+        #ifdef REDIRECT_DEBUG_OUTPUT
+            qDebug() << "Attempt to delete directory content: " << path;
+            deleteFolderContent(path);
+        #endif
+        qDebug() << "DEBUG Do not Attempt to delete directory content: " << path;
     }
 
 
@@ -159,7 +165,7 @@ MainWindow::MainWindow(QWidget *parent): QMainWindow(parent), ui(new Ui::MainWin
 
 
 
-    // 运行octave初始化配置
+    // 运行octave初始化环境配置
     QProcess octaveInitProcess;
     octaveInitProcess.setWorkingDirectory(QDir::cleanPath(QCoreApplication::applicationDirPath() + "/octave"));
     octaveInitProcess.start("cmd", QStringList() << "/C" << "post-install.bat");
@@ -190,8 +196,6 @@ MainWindow::MainWindow(QWidget *parent): QMainWindow(parent), ui(new Ui::MainWin
     }
 
 
-
-
     // 初始化octave 6步的分析代码
     // QString octavePath = QDir::cleanPath(QCoreApplication::applicationDirPath() + "/octave/bin/octave.exe");
     QString octavePath = QDir::cleanPath(QCoreApplication::applicationDirPath() + "/data/exec.bat");
@@ -217,17 +221,16 @@ MainWindow::MainWindow(QWidget *parent): QMainWindow(parent), ui(new Ui::MainWin
     // addNewThread(octavePath, {"step6.m"}, octaveRunningPath);
 
 
-    // 开始按钮槽函数连接
+    // 开始运行分析按钮槽函数连接
     connect(ui->pushButtonRun, &QPushButton::clicked, this, &MainWindow::on_processStart);
-
-
 
 
     // 日志功能槽函数连接
     connect(ui->pushButtonLogClear, &QPushButton::clicked, this, &MainWindow::on_textBrowserLogClear);
     connect(ui->pushButtonLogExport, &QPushButton::clicked, this, &MainWindow::on_textBrowserLogExport);
 
-    // 进度条更新槽函数
+
+    // 初始化监控进度文件progress.txt，用于进度条更新
     for (auto it = m_progressPath.constBegin(); it != m_progressPath.constEnd(); ++it)
     {
         QFile file(it.value());
@@ -258,14 +261,69 @@ MainWindow::MainWindow(QWidget *parent): QMainWindow(parent), ui(new Ui::MainWin
     // ui->progressBar->setVisible(false);
 
 
-    // 初始化图片列表
-    m_imageList = new ImageList();
-    ui->verticalLayoutImgList->addWidget(m_imageList);
-    connect(m_imageList, &ImageList::itemCurrent, this, [&](const QString& path){
-        ui->graphicsView->setImgByPath(path);
+    // 初始化文件列表控件
+    m_fileListWidget = new FileListWidget();
+    ui->verticalLayoutFileList->addWidget(m_fileListWidget);
+    // ui->graphicsView->enableFreeDraw();
+    // ui->graphicsView->enableRectDraw();
+    connect(m_fileListWidget, &FileListWidget::itemCurrent, this, [&](const QString& path, const FileType fileType){
+        switch (fileType) {
+        case FileType::IMAGE:
+            ui->graphicsView->setImgByPath(path);
+            break;
+        case FileType::TABLE:
+            ui->tablePreview->loadExcel(path);
+            break;
+        case FileType::OTHERS:
+            if(path.isEmpty()){
+                ui->othersPreviewLabel->setText("");
+            }
+            else{
+                QFileInfo fileInfo(path);
+                ui->othersPreviewLabel->setText(
+                    QString("<b>不支持预览该类型文件:</b> %1").arg(
+                        fileInfo.suffix() + "<br><br>" +
+                        "<b>文件名&nbsp;&nbsp;&nbsp;：</b>" + fileInfo.fileName() + "<br>" +
+                        "<b>文件大小：</b>" + QString::number(static_cast<double>(fileInfo.size()) / (1024 * 1024), 'g', 2) + " MB" + "<br>" +
+                        "<b>存储路径：</b>" + fileInfo.filePath() + "<br>" +
+                        "<b>创建时间：</b>" + fileInfo.fileTime(QFileDevice::FileBirthTime).toString("yyyy-MM-dd HH:mm:ss")  + "<br>" +
+                        "<b>修改时间：</b>" + fileInfo.fileTime(QFileDevice::FileModificationTime).toString("yyyy-MM-dd HH:mm:ss")
+                    )
+                );
+            }
+            break;
+        }
     });
 
+    // 初始化文件列表tab页按钮
+    // 图片tab，图标加载耗时，加载过程disable按钮
+    connect(ui->pushButtonImgTab, &QPushButton::clicked, this, [&](){
+        QPushButton *button = qobject_cast<QPushButton*>(sender());
+        if(button) button->setDisabled(true);
+        m_fileListWidget->setFilePath(m_resultPath[m_currentDisplay], FileType::IMAGE);
+        ui->graphicsView->setHidden(false);
+        ui->tablePreview->setHidden(true);
+        ui->othersPreview->setHidden(true);
+    });
+    connect(m_fileListWidget, &FileListWidget::iconLoadFinish, ui->pushButtonImgTab, [&](){
+        ui->pushButtonImgTab->setDisabled(false);
+    });
 
+    // 表格tab
+    connect(ui->pushButtonTableTab, &QPushButton::clicked, this, [&](){
+        m_fileListWidget->setFilePath(m_resultPath[m_currentDisplay], FileType::TABLE);
+        ui->graphicsView->setHidden(true);
+        ui->tablePreview->setHidden(false);
+        ui->othersPreview->setHidden(true);
+    });
+
+    // 其他tab
+    connect(ui->pushButtonOtherTab, &QPushButton::clicked, this, [&](){
+        m_fileListWidget->setFilePath(m_resultPath[m_currentDisplay], FileType::OTHERS);
+        ui->graphicsView->setHidden(true);
+        ui->tablePreview->setHidden(true);
+        ui->othersPreview->setHidden(false);
+    });
 
 
     // 初始化数据设置部分
@@ -282,7 +340,6 @@ MainWindow::MainWindow(QWidget *parent): QMainWindow(parent), ui(new Ui::MainWin
     m_layoutDataSetting->addWidget(m_widgetDataSetting_4);
     m_layoutDataSetting->addWidget(m_widgetDataSetting_5);
     m_layoutDataSetting->addWidget(m_widgetDataSetting_6);
-
 
 
 
@@ -363,7 +420,7 @@ MainWindow::~MainWindow()
     delete m_qmlWidget;
 
     // 删除ImageList对象
-    delete m_imageList;
+    delete m_fileListWidget;
 
     delete pixmapTitleLogo;
 }
@@ -766,7 +823,6 @@ void MainWindow::slotStepChange(Step currentStep)
     // }
 
     ui->progressBar->setValue(m_progressHistory[m_currentDisplay]);
-
 
 
     // 更新开始按钮
@@ -1477,6 +1533,37 @@ void MainWindow::initDataSettingPage2()
     lineEditMUT->setReadOnly(true);
     QPushButton *pushButtonSelectMUT = new QPushButton(tr("选择"));
 
+    // 频率范围选取
+    QLabel *labelFrequency = new QLabel(tr("频率范围选取"));
+    QDoubleSpinBox *spinBoxLeft = new QDoubleSpinBox();
+    spinBoxLeft->setRange(0, 100);
+    spinBoxLeft->setValue(0);
+    spinBoxLeft->setDecimals(2);
+    spinBoxLeft->setSingleStep(0.01);
+    spinBoxLeft->setButtonSymbols(QSpinBox::NoButtons);
+    QDoubleSpinBox *spinBoxRight = new QDoubleSpinBox();
+    spinBoxRight->setRange(0, 100);
+    spinBoxRight->setValue(13);
+    spinBoxRight->setDecimals(2);
+    spinBoxRight->setSingleStep(0.01);
+    spinBoxRight->setButtonSymbols(QSpinBox::NoButtons);  
+
+    QLabel *labelHzLeft = new QLabel("Hz       ~ ");
+    QLabel *labelHzRight = new QLabel("Hz");
+
+    QHBoxLayout *hLayoutForFrequency = new QHBoxLayout();
+    hLayoutForFrequency->setAlignment(Qt::AlignLeft);
+    hLayoutForFrequency->setContentsMargins(QMargins(0, 0, 0, 0));
+    hLayoutForFrequency->setSpacing(0);
+    hLayoutForFrequency->addWidget(spinBoxLeft);
+    hLayoutForFrequency->addWidget(labelHzLeft);
+    hLayoutForFrequency->addWidget(spinBoxRight);
+    hLayoutForFrequency->addWidget(labelHzRight);
+
+    // 设置默认值
+    m_config[STEP2]["begin"] = spinBoxLeft->value();
+    m_config[STEP2]["last"] = spinBoxRight->value();
+
     auto on_selectCONFile = [&, lineEditCON](){
         QString fullPath = QFileDialog::getOpenFileName(
             nullptr,
@@ -1529,8 +1616,18 @@ void MainWindow::initDataSettingPage2()
         m_config[STEP2]["input_files"] = QVariant::fromValue(map);
     };
 
+    auto on_frequencyLeftChange = [&](double value){
+        m_config[STEP2]["begin"] = value;
+    };
+
+    auto on_frequencyRightChange = [&](double value){
+            m_config[STEP2]["last"] = value;
+    };
+
     connect(pushButtonSelectCON, &QPushButton::clicked, this, on_selectCONFile);
     connect(pushButtonSelectMUT, &QPushButton::clicked, this, on_selectMUTFile);
+    connect(spinBoxLeft, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this, on_frequencyLeftChange);
+    connect(spinBoxRight, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this, on_frequencyRightChange);
 
     grid->addWidget(labelCON, 0, 0);
     grid->addWidget(lineEditCON, 0, 1);
@@ -1539,6 +1636,9 @@ void MainWindow::initDataSettingPage2()
     grid->addWidget(labelMUT, 1, 0);
     grid->addWidget(lineEditMUT, 1, 1);
     grid->addWidget(pushButtonSelectMUT, 1, 2);
+
+    grid->addWidget(labelFrequency, 2, 0);
+    grid->addLayout(hLayoutForFrequency, 2, 1);
 
     grid->setAlignment(Qt::AlignTop);
     m_widgetDataSetting_2->setLayout(grid);
@@ -1550,18 +1650,85 @@ void MainWindow::initDataSettingPage3()
     QGridLayout *grid = new QGridLayout();
 
     // 对照组
-    QLabel *labelCON = new QLabel(tr("对照组数据文件"));
-    QLineEdit *lineEditCON = new QLineEdit();
-    lineEditCON->setReadOnly(true);
-    QPushButton *pushButtonSelectCON = new QPushButton(tr("选择"));
+    QLabel *labelCON1 = new QLabel(tr("对照组数据文件"));
+    QLineEdit *lineEditAliasCON1 = new QLineEdit();
+    lineEditAliasCON1->setPlaceholderText("默认组名：Control 1");
+    lineEditAliasCON1->setMaxLength(100);
+    QLineEdit *lineEditCON1 = new QLineEdit();
+    lineEditCON1->setReadOnly(true);
+    lineEditCON1->setMinimumWidth(200);
+    QPushButton *pushButtonSelectCON1 = new QPushButton(tr("选择"));
 
     // 突变组
-    QLabel *labelMUT = new QLabel(tr("突变组数据文件"));
-    QLineEdit *lineEditMUT = new QLineEdit();
-    lineEditMUT->setReadOnly(true);
-    QPushButton *pushButtonSelectMUT = new QPushButton(tr("选择"));
+    QLabel *labelMUT1 = new QLabel(tr("突变组数据文件"));
+    QLineEdit *lineEditAliasMUT1 = new QLineEdit();
+    lineEditAliasMUT1->setPlaceholderText("默认组名：Mutant 1");
+    lineEditAliasMUT1->setMaxLength(100);
+    QLineEdit *lineEditMUT1 = new QLineEdit();
+    lineEditMUT1->setReadOnly(true);
+    lineEditMUT1->setMinimumWidth(200);
+    QPushButton *pushButtonSelectMUT1 = new QPushButton(tr("选择"));
 
-    auto on_selectCONFile = [&, lineEditCON](){
+    // 对照组
+    QLabel *labelCON2 = new QLabel(tr("对照组2（可选）"));
+    QLineEdit *lineEditAliasCON2 = new QLineEdit();
+    lineEditAliasCON2->setPlaceholderText("默认组名：Control 2");
+    lineEditAliasCON2->setMaxLength(100);
+    QPushButton *pushButtonSelectCON2 = new QPushButton(tr("点击选择文件..."));
+    pushButtonSelectCON2->setStyleSheet(QString("color:gray; text-align:left"));
+    pushButtonSelectCON2->setMaximumWidth(150);
+
+    // 突变组
+    QLabel *labelMUT2 = new QLabel(tr("突变组2（可选）"));
+    QLineEdit *lineEditAliasMUT2 = new QLineEdit();
+    lineEditAliasMUT2->setPlaceholderText("默认组名：Mutant 2");
+    lineEditAliasMUT2->setMaxLength(100);
+    QPushButton *pushButtonSelectMUT2 = new QPushButton(tr("点击选择文件..."));
+    pushButtonSelectMUT2->setStyleSheet(QString("color:gray; text-align:left"));
+    pushButtonSelectMUT2->setMaximumWidth(150);
+
+    // 频率范围选取
+    QLabel *labelFrequency = new QLabel(tr("频率范围选取"));
+    QDoubleSpinBox *spinBoxLeft = new QDoubleSpinBox();
+    spinBoxLeft->setRange(0, 100);
+    spinBoxLeft->setValue(0);
+    spinBoxLeft->setDecimals(2);
+    spinBoxLeft->setSingleStep(0.01);
+    spinBoxLeft->setButtonSymbols(QSpinBox::NoButtons);
+    QDoubleSpinBox *spinBoxRight = new QDoubleSpinBox();
+    spinBoxRight->setRange(0, 100);
+    spinBoxRight->setValue(13);
+    spinBoxRight->setDecimals(2);
+    spinBoxRight->setSingleStep(0.01);
+    spinBoxRight->setButtonSymbols(QSpinBox::NoButtons);
+
+    QLabel *labelHzLeft = new QLabel("Hz       ~ ");
+    QLabel *labelHzRight = new QLabel("Hz");
+
+    QHBoxLayout *hLayoutForFrequency = new QHBoxLayout();
+    hLayoutForFrequency->setAlignment(Qt::AlignLeft);
+    hLayoutForFrequency->setContentsMargins(QMargins(0, 0, 0, 0));
+    hLayoutForFrequency->setSpacing(0);
+    hLayoutForFrequency->addWidget(spinBoxLeft);
+    hLayoutForFrequency->addWidget(labelHzLeft);
+    hLayoutForFrequency->addWidget(spinBoxRight);
+    hLayoutForFrequency->addWidget(labelHzRight);
+
+    // 设置默认值
+    m_config[STEP3]["begin"] = spinBoxLeft->value();
+    m_config[STEP3]["last"] = spinBoxRight->value();
+    QList<QString> stringList;
+    stringList << "CON1" << "MUT1";
+    m_config[STEP3]["selected_inputs"].setValue(stringList);
+
+    QMap<QString, QString> map;
+    map["CON1"] = "Control 1";
+    map["CON2"] = "Control 2";
+    map["MUT1"] = "Mutant 1";
+    map["MUT2"] = "Mutant 2";
+    m_config[STEP3]["group_names"] = QVariant::fromValue(map);
+
+    auto on_selectCON1File = [&, lineEditCON1](){
         QString fullPath = QFileDialog::getOpenFileName(
             nullptr,
             tr("选择导入 mat 文件"),
@@ -1570,12 +1737,9 @@ void MainWindow::initDataSettingPage3()
             );
 
         if (fullPath.isEmpty())
-        {
-            // QMessageBox::critical(nullptr, "错误", QString("未选择文件！"));
             return;
-        }
 
-        lineEditCON->setText(fullPath);
+        lineEditCON1->setText(fullPath);
 
         QMap<QString, QString> map;
         if(m_config[STEP3].contains("input_files"))  // 存在，以前写入过，更新
@@ -1583,11 +1747,12 @@ void MainWindow::initDataSettingPage3()
         else                                         // 不存在，准备插入
             map.clear();
 
-        map["CON"] = fullPath;
+        map["CON1"] = fullPath;
         m_config[STEP3]["input_files"] = QVariant::fromValue(map);
     };
 
-    auto on_selectMUTFile = [&, lineEditMUT](){
+
+    auto on_selectMUT1File = [&, lineEditMUT1](){
         QString fullPath = QFileDialog::getOpenFileName(
             nullptr,
             tr("选择导入 mat 文件"),
@@ -1596,12 +1761,9 @@ void MainWindow::initDataSettingPage3()
             );
 
         if (fullPath.isEmpty())
-        {
-            // QMessageBox::critical(nullptr, "错误", QString("未选择文件！"));
             return;
-        }
 
-        lineEditMUT->setText(fullPath);
+        lineEditMUT1->setText(fullPath);
 
         QMap<QString, QString> map;
         if(m_config[STEP3].contains("input_files"))  // 存在，以前写入过，更新
@@ -1609,20 +1771,170 @@ void MainWindow::initDataSettingPage3()
         else                                         // 不存在，准备插入
             map.clear();
 
-        map["MUT"] = fullPath;
+        map["MUT1"] = fullPath;
         m_config[STEP3]["input_files"] = QVariant::fromValue(map);
     };
 
-    connect(pushButtonSelectCON, &QPushButton::clicked, this, on_selectCONFile);
-    connect(pushButtonSelectMUT, &QPushButton::clicked, this, on_selectMUTFile);
+    auto on_selectCON2File = [&, pushButtonSelectCON2](){
+        QString fullPath = QFileDialog::getOpenFileName(
+            nullptr,
+            tr("选择导入 mat 文件"),
+            QCoreApplication::applicationDirPath(),
+            "Text Files (*.mat);;All Files (*)"
+            );
 
-    grid->addWidget(labelCON, 0, 0);
-    grid->addWidget(lineEditCON, 0, 1);
-    grid->addWidget(pushButtonSelectCON, 0, 2);
+        if (fullPath.isEmpty())
+            return;
 
-    grid->addWidget(labelMUT, 1, 0);
-    grid->addWidget(lineEditMUT, 1, 1);
-    grid->addWidget(pushButtonSelectMUT, 1, 2);
+        pushButtonSelectCON2->setText(tr("点击选择文件..."));
+
+        QMap<QString, QString> map;
+        if(m_config[STEP3].contains("input_files"))  // 存在，以前写入过，更新
+            map = m_config[STEP3]["input_files"].value<QMap<QString, QString>>();
+        else                                         // 不存在，准备插入
+            map.clear();
+
+        if(map.contains("CON1") && map.contains("MUT1"))
+        {
+            map["CON2"] = fullPath;
+            m_config[STEP3]["input_files"] = QVariant::fromValue(map);
+            QList<QString> stringList = m_config[STEP3]["selected_inputs"].value<QList<QString>>();
+            if(!stringList.contains("CON2"))
+                stringList.append("CON2");
+            m_config[STEP3]["selected_inputs"].setValue(stringList);
+            pushButtonSelectCON2->setText(fullPath);
+        }
+        else
+        {
+            QMessageBox::information(nullptr, "提示", "请先选择【对照组数据文件】【突变组数据文件】", QMessageBox::Ok);
+            return;
+        }
+    };
+
+
+    auto on_selectMUT2File = [&, pushButtonSelectMUT2](){
+        QString fullPath = QFileDialog::getOpenFileName(
+            nullptr,
+            tr("选择导入 mat 文件"),
+            QCoreApplication::applicationDirPath(),
+            "Text Files (*.mat);;All Files (*)"
+            );
+
+        if (fullPath.isEmpty())
+            return;
+
+        pushButtonSelectMUT2->setText(tr("点击选择文件..."));
+
+        QMap<QString, QString> map;
+        if(m_config[STEP3].contains("input_files"))  // 存在，以前写入过，更新
+            map = m_config[STEP3]["input_files"].value<QMap<QString, QString>>();
+        else                                         // 不存在，准备插入
+            map.clear();
+
+        if(map.contains("CON1") && map.contains("MUT1") && map.contains("CON2"))
+        {
+            map["MUT2"] = fullPath;
+            m_config[STEP3]["input_files"] = QVariant::fromValue(map);
+            QList<QString> stringList = m_config[STEP3]["selected_inputs"].value<QList<QString>>();
+            if(!stringList.contains("MUT2"))
+                stringList.append("MUT2");
+            m_config[STEP3]["selected_inputs"].setValue(stringList);
+            pushButtonSelectMUT2->setText(fullPath);
+        }
+        else
+        {
+            QMessageBox::information(nullptr, "提示", "请先选择【对照组数据文件】【突变组数据文件】【对照组2（可选）】", QMessageBox::Ok);
+            return;
+        }
+    };
+
+    auto on_aliasCON1Changed = [&](const QString &text){
+        QMap<QString, QString> map;
+        if(m_config[STEP3].contains("group_names"))  // 存在，以前写入过，更新
+            map = m_config[STEP3]["group_names"].value<QMap<QString, QString>>();
+        else                                         // 不存在，准备插入
+            map.clear();
+
+        map["CON1"] = text;
+        m_config[STEP3]["group_names"] = QVariant::fromValue(map);
+    };
+
+    auto on_aliasCON2Changed = [&](const QString &text){
+        QMap<QString, QString> map;
+        if(m_config[STEP3].contains("group_names"))  // 存在，以前写入过，更新
+            map = m_config[STEP3]["group_names"].value<QMap<QString, QString>>();
+        else                                         // 不存在，准备插入
+            map.clear();
+
+        map["CON2"] = text;
+        m_config[STEP3]["group_names"] = QVariant::fromValue(map);
+    };
+
+    auto on_aliasMUT1Changed = [&](const QString &text){
+        QMap<QString, QString> map;
+        if(m_config[STEP3].contains("group_names"))  // 存在，以前写入过，更新
+            map = m_config[STEP3]["group_names"].value<QMap<QString, QString>>();
+        else                                         // 不存在，准备插入
+            map.clear();
+
+        map["MUT1"] = text;
+        m_config[STEP3]["group_names"] = QVariant::fromValue(map);
+    };
+
+    auto on_aliasMUT2Changed = [&](const QString &text){
+        QMap<QString, QString> map;
+        if(m_config[STEP3].contains("group_names"))  // 存在，以前写入过，更新
+            map = m_config[STEP3]["group_names"].value<QMap<QString, QString>>();
+        else                                         // 不存在，准备插入
+            map.clear();
+
+        map["MUT2"] = text;
+        m_config[STEP3]["group_names"] = QVariant::fromValue(map);
+    };
+
+
+    auto on_spinBoxLeftValueChanged = [&](double left) {
+        m_config[STEP3]["begin"] = left;
+    };
+
+    auto on_spinBoxRightValueChanged = [&](double right) {
+        m_config[STEP3]["last"] = right;
+    };
+
+    connect(spinBoxLeft, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this, on_spinBoxLeftValueChanged);
+    connect(spinBoxRight, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this, on_spinBoxRightValueChanged);
+
+    connect(pushButtonSelectCON1, &QPushButton::clicked, this, on_selectCON1File);
+    connect(pushButtonSelectMUT1, &QPushButton::clicked, this, on_selectMUT1File);
+    connect(pushButtonSelectCON2, &QPushButton::clicked, this, on_selectCON2File);
+    connect(pushButtonSelectMUT2, &QPushButton::clicked, this, on_selectMUT2File);
+
+    connect(lineEditAliasCON1, &QLineEdit::textChanged, this, on_aliasCON1Changed);
+    connect(lineEditAliasCON2, &QLineEdit::textChanged, this, on_aliasCON2Changed);
+    connect(lineEditAliasMUT1, &QLineEdit::textChanged, this, on_aliasMUT1Changed);
+    connect(lineEditAliasMUT2, &QLineEdit::textChanged, this, on_aliasMUT2Changed);
+
+
+    grid->addWidget(labelCON1, 0, 0, 1, 1);
+    grid->addWidget(lineEditAliasCON1, 0, 1, 1, 1);
+    grid->addWidget(lineEditCON1, 0, 2, 1, 3);
+    grid->addWidget(pushButtonSelectCON1, 0, 5, 1, 1);
+
+    grid->addWidget(labelMUT1, 1, 0, 1, 1);
+    grid->addWidget(lineEditAliasMUT1, 1, 1, 1, 1);
+    grid->addWidget(lineEditMUT1, 1, 2, 1, 3);
+    grid->addWidget(pushButtonSelectMUT1, 1, 5, 1, 1);
+
+    grid->addWidget(labelFrequency, 3, 0, 1, 1);
+    grid->addLayout(hLayoutForFrequency, 3, 1, 1, 5);
+
+    grid->addWidget(labelCON2, 4, 0, 1, 1);
+    grid->addWidget(lineEditAliasCON2, 4, 1, 1, 1);
+    grid->addWidget(pushButtonSelectCON2, 4, 2, 1, 2);
+
+    grid->addWidget(labelMUT2, 5, 0, 1, 1);
+    grid->addWidget(lineEditAliasMUT2, 5, 1, 1, 1);
+    grid->addWidget(pushButtonSelectMUT2, 5, 2, 1, 2);
 
     grid->setAlignment(Qt::AlignTop);
     m_widgetDataSetting_3->setLayout(grid);
@@ -1736,11 +2048,11 @@ void MainWindow::initDataSettingPage4()
     connect(spinBoxPointX2, QOverload<int>::of (&QSpinBox::valueChanged), this, on_pointX2Change);
     connect(spinBoxPointY2, QOverload<int>::of (&QSpinBox::valueChanged), this, on_pointY2Change);
 
-    grid->addWidget(labelTimeTif, 0, 0);
+    grid->addWidget(labelTimeTif, 0, 0, 1, 1);
     grid->addWidget(lineEditDir, 0, 1, 1, 6);
     grid->addWidget(pushButtonSelectDir, 0, 7, 1, 2);
 
-    grid->addWidget(labelPoint, 1, 0);
+    grid->addWidget(labelPoint, 1, 0, 1, 1);
 
     // grid->addWidget(labelPointX1, 1, 1);
     // grid->addWidget(spinBoxPointX1, 1, 2);
@@ -1809,6 +2121,10 @@ void MainWindow::initDataSettingPage5()
     spinBoxRight->setDecimals(2);
     spinBoxRight->setSingleStep(0.05);
     spinBoxRight->setButtonSymbols(QSpinBox::NoButtons);
+
+    // 设置默认值
+    m_config[STEP5]["bar_begin"] = spinBoxLeft->value();
+    m_config[STEP5]["bar_end"] = spinBoxRight->value();
 
     QHBoxLayout *hLayout = new QHBoxLayout();
     hLayout->addWidget(dualSlider, 7);
@@ -2053,34 +2369,51 @@ void MainWindow::initDataSettingPage6()
 {
     QGridLayout *grid = new QGridLayout();
 
-    QLabel *labelTif = new QLabel(tr("数据文件"));
+    QLabel *labelTif = new QLabel(tr("数据文件夹"));
     QLineEdit *lineEditTif = new QLineEdit();
     lineEditTif->setReadOnly(true);
     QPushButton *pushButtonSelectTif = new QPushButton(tr("选择"));
 
-    auto on_selectTif = [&, lineEditTif](){
-        QString fullPath = QFileDialog::getOpenFileName(
+    auto on_selectTif = [&, lineEditTif](){    
+        QString directory = QFileDialog::getExistingDirectory(
             nullptr,
-            tr("选择导入 tif 文件"),
+            "选择数据目录",
             QCoreApplication::applicationDirPath(),
-            "Text Files (*.tif);;All Files (*)"
-            );
+            QFileDialog::ShowDirsOnly | QFileDialog::DontResolveSymlinks);
 
-        if (fullPath.isEmpty())
+        qDebug() << "Selected directory:" << directory;
+        if (directory.isEmpty())
         {
-            // QMessageBox::critical(nullptr, "错误", QString("未选择文件！"));
+            qDebug() << "No directory selected.";
             return;
         }
 
-        lineEditTif->setText(fullPath);
+        // 只读tif文件
+        QDir dir(directory);
+        QFileInfoList fileList = dir.entryInfoList(QStringList() << "*.tif", QDir::Files);
 
-        QMap<QString, QString> map;
+        if(fileList.length() == 0)
+        {
+            qDebug() << "Directory has no files.";
+            lineEditTif->setText(tr("文件夹为空！"));
+            return;
+        }
+
+        lineEditTif->setText(directory);
+
+        QList<QString> tifPathList;
+        foreach (auto file, fileList) {
+            tifPathList.append(file.absoluteFilePath());
+        }
+
+
+        QMap<QString, QList<QString>> map;
         if(m_config[STEP6].contains("input_files"))  // 存在，以前写入过，更新
-            map = m_config[STEP6]["input_files"].value<QMap<QString, QString>>();
+            map = m_config[STEP6]["input_files"].value<QMap<QString, QList<QString>>>();
         else                                         // 不存在，准备插入
             map.clear();
 
-        map["mouse"] = fullPath;
+        map["mouse"] = tifPathList;
         m_config[STEP6]["input_files"] = QVariant::fromValue(map);
     };
 
@@ -2100,9 +2433,8 @@ void MainWindow::initDataSettingPage6()
 void MainWindow::on_widgetContainerStep_1_clicked()
 {
     slotStepChange(Step::STEP1);
-
     m_layoutDataSetting->setCurrentIndex(m_currentDisplay);
-    m_imageList->setImgPath(m_resultPath[m_currentDisplay]);
+    ui->pushButtonImgTab->click();  // 默认显示图片分页
     ui->pushButtonRun->raise();
 }
 
@@ -2111,7 +2443,7 @@ void MainWindow::on_widgetContainerStep_2_clicked()
 {
     slotStepChange(Step::STEP2);
     m_layoutDataSetting->setCurrentIndex(m_currentDisplay);
-    m_imageList->setImgPath(m_resultPath[m_currentDisplay]);
+    ui->pushButtonImgTab->click();  // 默认显示图片分页
     ui->pushButtonRun->raise();
 }
 
@@ -2120,7 +2452,7 @@ void MainWindow::on_widgetContainerStep_3_clicked()
 {
     slotStepChange(Step::STEP3);
     m_layoutDataSetting->setCurrentIndex(m_currentDisplay);
-    m_imageList->setImgPath(m_resultPath[m_currentDisplay]);
+    ui->pushButtonImgTab->click();  // 默认显示图片分页
     ui->pushButtonRun->raise();
 }
 
@@ -2129,7 +2461,7 @@ void MainWindow::on_widgetContainerStep_4_clicked()
 {
     slotStepChange(Step::STEP4);
     m_layoutDataSetting->setCurrentIndex(m_currentDisplay);
-    m_imageList->setImgPath(m_resultPath[m_currentDisplay]);
+    ui->pushButtonImgTab->click();  // 默认显示图片分页
     ui->pushButtonRun->raise();
 }
 
@@ -2138,7 +2470,7 @@ void MainWindow::on_widgetContainerStep_5_clicked()
 {
     slotStepChange(Step::STEP5);
     m_layoutDataSetting->setCurrentIndex(m_currentDisplay);
-    m_imageList->setImgPath(m_resultPath[m_currentDisplay]);
+    ui->pushButtonImgTab->click();  // 默认显示图片分页
     ui->pushButtonRun->raise();
 }
 
@@ -2147,7 +2479,7 @@ void MainWindow::on_widgetContainerStep_6_clicked()
 {
     slotStepChange(Step::STEP6);
     m_layoutDataSetting->setCurrentIndex(m_currentDisplay);
-    m_imageList->setImgPath(m_resultPath[m_currentDisplay]);
+    ui->pushButtonImgTab->click();  // 默认显示图片分页
     ui->pushButtonRun->raise();
 }
 
@@ -2255,12 +2587,12 @@ void MainWindow::on_processStart()
             }
 
             QMap<QString, QString> map = m_config[STEP3]["input_files"].value<QMap<QString, QString>>();
-            if(!map.contains("CON"))
+            if(!map.contains("CON1"))
             {
                 QMessageBox::warning(nullptr, "错误", "未选择对照组 mat 文件！",  QMessageBox::Ok,QMessageBox::Ok);
                 return;
             }
-            if(!map.contains("MUT"))
+            if(!map.contains("MUT1"))
             {
                 QMessageBox::warning(nullptr, "错误", "未选择突变组 mat 文件！",  QMessageBox::Ok,QMessageBox::Ok);
                 return;
@@ -2335,6 +2667,45 @@ void MainWindow::on_processStart()
                 return;
             }
 
+            if(m_config[STEP6]["input_files"].canConvert<QMap<QString, QList<QString>>>())
+            {
+                QMap<QString, QList<QString>> map = m_config[STEP6]["input_files"].value<QMap<QString, QList<QString>>>();
+                if(map.contains("mouse"))
+                {
+                    if(map["mouse"].length() < 2)
+                    {
+                        QMessageBox::warning(nullptr, "错误", QString("至少输入该小鼠的 3 个 TIF 文件，获取输入【%1】个").arg(map["mouse"].length()), QMessageBox::Ok,QMessageBox::Ok);
+                        return;
+                    }
+                }
+                else // 没有 mouse 键，报错
+                {
+                    QMessageBox::warning(
+                        nullptr,
+                        "错误",
+                        QString("配置文件错误！\n%1\n")
+                            .arg("m_config[STEP6][\"input_files\"].contains(\"mouse\") FALSE",
+                                 "\nm_config[STEP6][\"input_files\"]:\n",
+                                 m_config[STEP6]["input_files"].toString()),
+                        QMessageBox::Ok,QMessageBox::Ok
+                    );
+                    return;
+                }
+            }
+            else
+            {
+                QMessageBox::warning(
+                    nullptr,
+                    "错误",
+                    QString("配置文件错误！\n%1\n")
+                        .arg("m_config[STEP6][\"input_files\"].canConvert<QMap<QString, QList<QString>>> FALSE",
+                             "\nm_config[STEP6][\"input_files\"]:\n",
+                             m_config[STEP6]["input_files"].toString()),
+                    QMessageBox::Ok,QMessageBox::Ok
+                );
+                return;
+            }
+
             m_configSaver.saveConfig(m_config, m_configSavePath);
 
             emit cmdStartRun();
@@ -2350,42 +2721,11 @@ void MainWindow::on_processStart()
 
 void MainWindow::on_updateImageList()
 {
-    qDebug() << "cmdFinish, updateImageList" << m_resultPath[m_currentDisplay];
+    QString resultPath = m_resultPath[m_currentDisplay];
+    qDebug() << "cmdFinish, updateImageList" << resultPath;
 
-    switch (m_currentDisplay) {
-    case Step::STEP1:
-
-        m_imageList->setImgPath(m_resultPath[STEP1]);
-        break;
-
-    case Step::STEP2:
-
-        m_imageList->setImgPath(m_resultPath[STEP2]);
-        break;
-
-    case Step::STEP3:
-
-        m_imageList->setImgPath(m_resultPath[STEP3]);
-        break;
-
-    case Step::STEP4:
-
-        m_imageList->setImgPath(m_resultPath[STEP4]);
-        break;
-
-    case Step::STEP5:
-
-        m_imageList->setImgPath(m_resultPath[STEP5]);
-        break;
-
-    case Step::STEP6:
-
-        m_imageList->setImgPath(m_resultPath[STEP6]);
-        break;
-
-    default:
-        break;
-    }
+    // 默认显示图片列表
+    ui->pushButtonImgTab->click();
 }
 
 

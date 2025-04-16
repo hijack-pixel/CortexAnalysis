@@ -45,9 +45,17 @@ int main(int argc, char *argv[])
     // 主窗口运行
     MainWindow w;
     w.setWindowIcon(QIcon(":/icon/logo.svg"));
-    w.setWindowTitle(QString("大脑皮层成像分析软件 V0.3"));
+    w.setWindowTitle(QString("大脑皮层成像分析软件 V0.5"));
     w.show();
 
+    // xlnt::workbook wb;
+    // xlnt::worksheet ws = wb.active_sheet();
+    // ws.cell("A1").value(5); // 写入数值
+    // ws.cell("B2").value("string data"); // 写入字符串
+    // ws.cell("C3").formula("RAND()"); // 写入公式
+    // ws.merge_cells("C3:C4"); // 合并 C3:C4 单元格
+    // ws.freeze_panes("B2"); // 冻结 B2
+    // wb.save("example.xlsx");
 
     return a.exec();
 }

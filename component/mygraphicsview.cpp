@@ -37,7 +37,7 @@ MyGraphicsView::~MyGraphicsView()
 
 void MyGraphicsView::init()
 {
-    setMinimumSize(400, 400);
+    // setMinimumSize(400, 400);
     setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     setRenderHint(QPainter::Antialiasing);
@@ -186,7 +186,7 @@ void MyGraphicsView::mousePressEvent(QMouseEvent *event)
     if(event->button() == Qt::LeftButton)  //assistItem初始化
     {
         startPoint = endPoint = (event->pos());
-        assistItem->setPos(mapToParent(startPoint.toPoint())); //依据鼠标点击的控件位置设置元素的位置
+        assistItem->setPos(mapToScene(startPoint.toPoint())); //依据鼠标点击的控件位置设置元素的位置
         assistItem->setItemSize(0,0);
         assistItem->update();
         qDebug() << "Press(View): " << (startPoint.toPoint());

@@ -38,6 +38,17 @@ enum Step
     UNKNOWN,
 };
 
+// 枚举类型，表示文件类型
+enum FileType
+{
+    IMAGE = 0,
+    TABLE,
+    OTHERS
+};
+
+// 注册 FileType
+Q_DECLARE_METATYPE(FileType);
+
 
 // 保存全局配置
 extern QSettings globalSettings;

@@ -4,7 +4,7 @@
 #include "./component/commandprocess.h"
 #include "./component/common.h"
 #include "./component/configsaver.h"
-#include "./component/imagelist.h"
+#include "./component/filelistwidget.h"
 #include "./component/csvparser.h"
 
 #include <QMainWindow>
@@ -271,7 +271,7 @@ private:
     ConfigSaver m_configSaver;          // 用于保存配置至json文件
     CsvParser   m_csvParser;            // 用于解析csv文件
 
-    ImageList *m_imageList = nullptr;   // 图片列表显示
+    FileListWidget *m_fileListWidget = nullptr;   // 图片列表显示
 
 
     QMap<Step, QString> m_resultPath =  // 分析结果保存列表

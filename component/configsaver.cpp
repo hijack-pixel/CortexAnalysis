@@ -61,11 +61,12 @@ QJsonValue ConfigSaver::variantToJsonValue(const QVariant &variant) {
         }
         return QJsonValue(jsonArray);
     }
-    // 添加对QMap<QString, QList<QString>>的处理
     case QVariant::UserType:
     {
+        // 添加对QMap<QString, QList<QString>>的处理
         if (variant.canConvert<QMap<QString, QList<QString>>>())
         {
+            qDebug() << "<QMap<QString, QList<QString>>>" << "<QMap<QString, QList<QString>>>";
             QJsonObject jsonObject;
             QMap<QString, QList<QString>> map = variant.value<QMap<QString, QList<QString>>>();
             for (auto it = map.constBegin(); it != map.constEnd(); ++it)
@@ -76,6 +77,7 @@ QJsonValue ConfigSaver::variantToJsonValue(const QVariant &variant) {
                     jsonArray.append(str);
                 }
                 jsonObject[it.key()] = jsonArray;
+                qDebug() << it.key() << it.value();
             }
             return QJsonValue(jsonObject);
         }
@@ -112,6 +114,17 @@ QJsonValue ConfigSaver::variantToJsonValue(const QVariant &variant) {
             }
             return QJsonValue(jsonObject);
         }
+        // 添加对QList<QString>的处理
+        else if (variant.canConvert<QList<QString>>())
+        {
+            QJsonArray jsonArray;
+            QList<QString> stringList = variant.value<QList<QString>>();
+            for (const QString &str : stringList)
+            {
+                jsonArray.append(str);
+            }
+            return QJsonValue(jsonArray);
+        }
         // 如果是其他自定义类型，继续递归转换
         else
         {
@@ -125,7 +138,7 @@ QJsonValue ConfigSaver::variantToJsonValue(const QVariant &variant) {
 
 
 // 成员函数实现
-void ConfigSaver::saveConfig(const QMap<Step, QMap<QString, QVariant>>& config,const QString& savePath) {
+void ConfigSaver::saveConfig(const QMap<Step, QMap<QString, QVariant>>& config, const QString& savePath) {
 
     QFile file(savePath);
     qDebug() << "Save to: " << savePath;

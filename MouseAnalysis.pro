@@ -1,4 +1,4 @@
-QT       += core gui
+QT       += core gui concurrent
 
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets quickwidgets qml quick quickcontrols2
 
@@ -18,12 +18,21 @@ CONFIG(release, debug|release) {
 
 LIBS += -lgdi32 -luser32
 
-INCLUDEPATH += component/libqemf
+## emf预览库
+INCLUDEPATH += $$PWD/component/libqemf
 SOURCES += $$files($$PWD/component/libqemf/*.cpp, true) \
-    component/dualslider.cpp
+    component/tablewidget.cpp
 HEADERS += $$files($$PWD/component/libqemf/*.h, true) \
-    component/dualslider.h
+    component/tablewidget.h
 
+## xlnt excel预览库
+INCLUDEPATH += $$PWD/component/xlnt/include/
+CONFIG(release, debug|release): XLNTLIBNAME = xlnt
+CONFIG(debug, debug|release):   XLNTLIBNAME = xlntd
+LIBS += -L$$PWD/component/xlnt/lib/ -l$${XLNTLIBNAME}
+
+
+## 无边框显示库
 include(component/FramelessHelper/FramelessHelper.pri)
 
 SOURCES += \
@@ -34,7 +43,8 @@ SOURCES += \
     component/common.cpp \
     component/configsaver.cpp \
     component/csvparser.cpp \
-    component/imagelist.cpp \
+    component/dualslider.cpp \
+    component/filelistwidget.cpp \
     component/mygraphicsview.cpp \
     component/settingsdialog.cpp \
     main.cpp \
@@ -48,7 +58,8 @@ HEADERS += \
     component/common.h \
     component/configsaver.h \
     component/csvparser.h \
-    component/imagelist.h \
+    component/dualslider.h \
+    component/filelistwidget.h \
     component/mygraphicsview.h \
     component/settingsdialog.h \
     mainwindow.h
