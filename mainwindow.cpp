@@ -862,6 +862,7 @@ void MainWindow::updateWidgetStepCheck(Step stepPre, Step stepCur)
     case STEP4: ui->widgetContainerStep_4->setChecked(false);break;
     case STEP5: ui->widgetContainerStep_5->setChecked(false);break;
     case STEP6: ui->widgetContainerStep_6->setChecked(false);break;
+    default: qDebug()<<"Invalid Step: stepPre";
     }
 
     // 打开现在的选中效果
@@ -873,6 +874,7 @@ void MainWindow::updateWidgetStepCheck(Step stepPre, Step stepCur)
     case STEP4: ui->widgetContainerStep_4->setChecked(true);break;
     case STEP5: ui->widgetContainerStep_5->setChecked(true);break;
     case STEP6: ui->widgetContainerStep_6->setChecked(true);break;
+    default: qDebug()<<"Invalid Step: stepPre";
     }
 }
 

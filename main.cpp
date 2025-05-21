@@ -6,12 +6,20 @@
 #include <QDateTime>
 #pragma execution_character_set("utf-8")
 
-
 QFile debugFile("log.txt");
 
 void customMessageHandler(QtMsgType type, const QMessageLogContext &context, const QString &msg){
     QTextStream out(&debugFile);
-    out << QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss") << msg << "\n";
+
+    // 从上下文中提取文件名、函数名和行号
+    QString fileName = context.file ? context.file : "unknown file";
+    QString functionName = context.function ? context.function : "unknown function";
+    int lineNumber = context.line ? context.line : -1;
+
+    out << QDateTime::currentDateTime().toString("yyyy-MM-dd HH:mm:ss.zzz ")
+        << "[" << fileName << ":" << functionName << ":" << lineNumber << "] "
+        << msg << '\n';
+
 };
 
 

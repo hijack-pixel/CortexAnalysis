@@ -14,19 +14,22 @@ TARGET=CortexAnalysis
 # 检查是否是 release 构建模式
 CONFIG(release, debug|release) {
     DEFINES += REDIRECT_DEBUG_OUTPUT
+    DEFINES += QT_MESSAGELOGCONTEXT
 }
 
 LIBS += -lgdi32 -luser32
 
+
 ## emf预览库
 INCLUDEPATH += $$PWD/component/libqemf
-SOURCES += $$files($$PWD/component/libqemf/*.cpp, true) \
-    component/tablewidget.cpp
-HEADERS += $$files($$PWD/component/libqemf/*.h, true) \
-    component/tablewidget.h
+SOURCES += $$files($$PWD/component/libqemf/*.cpp, true)
+HEADERS += $$files($$PWD/component/libqemf/*.h, true)
+
 
 ## xlnt excel预览库
 INCLUDEPATH += $$PWD/component/xlnt/include/
+SOURCES += $$files($$PWD/component/xlnt/*.cpp, true)
+HEADERS += $$files($$PWD/component/xlnt/*.hpp, true)
 CONFIG(release, debug|release): XLNTLIBNAME = xlnt
 CONFIG(debug, debug|release):   XLNTLIBNAME = xlntd
 LIBS += -L$$PWD/component/xlnt/lib/ -l$${XLNTLIBNAME}
@@ -47,6 +50,7 @@ SOURCES += \
     component/filelistwidget.cpp \
     component/mygraphicsview.cpp \
     component/settingsdialog.cpp \
+    component/tablewidget.cpp \
     main.cpp \
     mainwindow.cpp
 
@@ -62,6 +66,7 @@ HEADERS += \
     component/filelistwidget.h \
     component/mygraphicsview.h \
     component/settingsdialog.h \
+    component/tablewidget.h \
     mainwindow.h
 
 FORMS += \
@@ -73,7 +78,11 @@ else: unix:!android: target.path = /opt/$${TARGET}/bin
 !isEmpty(target.path): INSTALLS += target
 
 
-DISTFILES +=
-
 RESOURCES += \
     assets.qrc
+
+DISTFILES += \
+    component/xlnt/lib/xlnt.dll \
+    component/xlnt/lib/xlnt.lib \
+    component/xlnt/lib/xlntd.dll \
+    component/xlnt/lib/xlntd.lib
