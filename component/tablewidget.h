@@ -29,6 +29,7 @@ public slots:
     void loadExcel(const QString &filePath);  // 载入Excel文件
     void showSheet(int sheetIndex);  // 显示选定的Sheet
     void openInSystemApp();          // 打开文件通过系统应用
+    void clearContent();             // 清除内容
 
 private:
     void showFileOpenButton();       // 显示打开文件按钮
@@ -47,6 +48,7 @@ private:
 
     const int MAX_ROW = 5000;
     const int MAX_COL = 100;
+    const int MAX_FILE_SIZE = 1 * 1024 * 1024;   // 1 MB
 };
 
 #endif // TABLEWIDGET_H

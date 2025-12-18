@@ -10,6 +10,8 @@
 #include <QFuture>
 #include <QFutureWatcher>
 
+#include "copyworker.h"
+
 extern QPixmap getEMFPixmap(const QString& filePath, bool zoomIn, int minSize);
 
 FileListWidget::FileListWidget(QWidget *parent): QWidget{parent}
@@ -49,7 +51,7 @@ void FileListWidget::init()
         {
             QString absoultFilePath = m_listWidget->item(row)->data(Qt::UserRole).value<QString>();
             FileType fileType = m_listWidget->item(row)->data(Qt::UserRole+1).value<FileType>();
-            emit itemCurrent(absoultFilePath, fileType);
+            emit itemCurrent(absoultFilePath, fileType, row);
         }
     });
 
@@ -101,7 +103,7 @@ void FileListWidget::on_downloadSelect()
 
     if(selectCount == 0)
     {
-        QMessageBox::critical(nullptr, "错误", QString("未选择文件！"));
+        QMessageBox::critical(this, "错误", QString("未选择文件！"));
         return;
     }
 
@@ -111,6 +113,32 @@ void FileListWidget::on_downloadSelect()
         nullptr,
         QFileDialog::ShowDirsOnly | QFileDialog::DontResolveSymlinks);
     if(directory.isEmpty()) return;
+
+    QList<QPair<QString, QString>> tasks;
+    for (int i = 0; i < m_listWidget->count(); ++i) {
+        QListWidgetItem *item = m_listWidget->item(i);
+        if (item->checkState() == Qt::Checked) {
+            // 获取文件的绝对路径
+            QString sourceFilePath = item->data(Qt::UserRole).toString();
+            QFile sourceFile(sourceFilePath);
+
+            // 获取文件名
+            QFileInfo fileInfo(sourceFile);
+            QString fileName = fileInfo.fileName();
+
+            // 构建目标文件路径
+            QString targetFilePath = QDir(directory).filePath(fileName);
+
+            // 记录路径
+            tasks.append(QPair(sourceFilePath, targetFilePath));
+        }
+    }
+
+    // CopyWorker* copyWorker = new CopyWorker(this);
+    // copyWorker->start(tasks);
+    (new CopyWorker(this))->start(tasks);
+
+    /*
 
     // 新版版导出逻辑
     QStringList sourceFilePathList;
@@ -207,48 +235,7 @@ void FileListWidget::on_downloadSelect()
         }
 
     }
-
-    {
-    // 老版导出逻辑
-    // for (int i = 0; i < m_listWidget->count(); ++i) {
-    //     QListWidgetItem *item = m_listWidget->item(i);
-    //     if (item->checkState() == Qt::Checked) {
-    //         // 获取文件的绝对路径
-    //         QString sourceFilePath = item->data(Qt::UserRole).toString();
-    //         QFile sourceFile(sourceFilePath);
-
-    //         // 获取文件名
-    //         QFileInfo fileInfo(sourceFile);
-    //         QString fileName = fileInfo.fileName();
-
-    //         // 构建目标文件路径
-    //         QString targetFilePath = QDir(directory).filePath(fileName);
-
-    //         // 如果目标文件已存在，提示用户
-    //         if (QFile::exists(targetFilePath)) {
-    //             QMessageBox::StandardButton reply;
-    //             reply = QMessageBox::question(nullptr, tr("文件已存在"),
-    //                                           QString(tr("文件已存在：%1，覆盖此文件?")).arg(fileName),
-    //                                           QMessageBox::Yes | QMessageBox::No);
-    //             if (reply == QMessageBox::No)        // 如果用户选择不覆盖，则跳过当前文件
-    //             {
-    //                 continue;
-    //             }
-    //         }
-
-    //         // 复制文件到新位置
-    //         if (sourceFile.copy(targetFilePath)) {
-    //             // QMessageBox::information(nullptr, "File Saved", "File saved as " + targetFilePath);
-    //         } else {
-    //             QFile existTargetFile(targetFilePath);
-    //             if (!existTargetFile.remove()) {
-    //                 QMessageBox::critical(nullptr, tr("保存失败"), QString(tr("无法覆盖目标文件%1！")).arg(targetFilePath));
-    //                 existTargetFile.close();
-    //             }
-    //         }
-    //     }
-    // }
-    }
+*/
 }
 
 QPixmap loadPixmap(const QString &filePath, QListWidgetItem *item) {
@@ -375,26 +362,72 @@ void FileListWidget::setFilePath(const QString& path, FileType fileType)
         // 过滤图片、excel、txt（log保存用的是txt）
         QStringList excludeSuffix;
         excludeSuffix << "png" << "jpg" << "jpeg" << "bmp" << "emf" << "xlsx" << "txt";
-        m_fileInfoList = directory.entryInfoList(QDir::Files);
+        m_fileInfoList = directory.entryInfoList(QDir::Files | QDir::Dirs | QDir::NoDotAndDotDot);
 
         foreach (const auto &fileInfo, m_fileInfoList) {
-            // 文件后缀在过滤列表中，不显示这些文件，只显示OTHERS
-            if(excludeSuffix.contains(fileInfo.suffix())) continue;
+            // 去除图片、表格，只显示OTHERS
+            if(excludeSuffix.contains(fileInfo.suffix(), Qt::CaseInsensitive)) continue;
 
-            QListWidgetItem *item = new QListWidgetItem(fileInfo.fileName());
+            QListWidgetItem *item = new QListWidgetItem();
             item->setSizeHint(QSize(100, 40));
             item->setFlags(item->flags() | Qt::ItemIsUserCheckable); // 添加复选框
             item->setCheckState(Qt::Unchecked);                      // 默认不选中
             m_listWidget->addItem(item);                             // 添加item到list
             item->setData(Qt::UserRole, QVariant::fromValue(fileInfo.absoluteFilePath()));
             item->setData(Qt::UserRole + 1, QVariant::fromValue(fileType));
-            item->setToolTip(
-                "文件名  ：" + fileInfo.fileName() + '\n' +
-                "文件大小：" + QString::number(static_cast<double>(fileInfo.size()) / (1024 * 1024), 'g', 2) + " MB" + '\n' +
-                "存储路径：" + fileInfo.filePath() + '\n' +
-                "创建时间：" + fileInfo.fileTime(QFileDevice::FileBirthTime).toString("yyyy-MM-dd HH:mm:ss") + '\n' +
-                "修改时间：" + fileInfo.fileTime(QFileDevice::FileModificationTime).toString("yyyy-MM-dd HH:mm:ss")
-                );
+
+            if (fileInfo.isFile())
+            {
+                item->setText("["+fileInfo.suffix()+"] " + fileInfo.fileName());
+                item->setToolTip(
+                    "<b>不支持预览该类型文件：</b>" + fileInfo.suffix()+ "<br><br>" +
+                    "<b>文件名&nbsp;&nbsp;&nbsp;：</b>" + fileInfo.fileName() + "<br>" +
+                    "<b>文件大小：</b>" + formatFileSize(fileInfo.size()) + "<br>" +
+                    "<b>存储路径：</b>" + fileInfo.filePath() + "<br>" +
+                    "<b>创建时间：</b>" + fileInfo.fileTime(QFileDevice::FileBirthTime).toString("yyyy-MM-dd HH:mm:ss") + "<br>" +
+                    "<b>修改时间：</b>" + fileInfo.fileTime(QFileDevice::FileModificationTime).toString("yyyy-MM-dd HH:mm:ss")
+                    );
+            }
+            else if(fileInfo.isDir())
+            {
+                item->setText("[文件夹] " + fileInfo.fileName());
+                item->setToolTip(
+                    "<b>不支持预览该类型文件：</b>" + tr("文件夹") + "<br><br>" +
+                    "<b>目录名&nbsp;&nbsp;&nbsp;：</b>" + fileInfo.fileName() + "<br>" +
+                    "<b>目录大小：</b>" + "计算中..." + "<br>" +
+                    "<b>存储路径：</b>" + fileInfo.filePath() + "<br>" +
+                    "<b>创建时间：</b>" + fileInfo.fileTime(QFileDevice::FileBirthTime).toString("yyyy-MM-dd HH:mm:ss") + "<br>" +
+                    "<b>修改时间：</b>" + fileInfo.fileTime(QFileDevice::FileModificationTime).toString("yyyy-MM-dd HH:mm:ss")
+                    );
+
+                // 为每个目录创建独立 watcher（轻量，计算完自动 delete）
+                auto *watcher = new QFutureWatcher<qint64>();
+                watcher->setProperty("filePath", fileInfo.filePath()); // 存 path 用于回调定位
+
+                // 连接 finished 信号
+                connect(watcher, &QFutureWatcher<qint64>::finished, this, [this, watcher]() {
+                    QString path = watcher->property("filePath").toString();
+                    qint64 size = watcher->future().result();
+                    watcher->deleteLater(); // 自动清理
+
+                    // 查找对应 item
+                    for (int i = 0; i < m_listWidget->count(); ++i)
+                    {
+                        QListWidgetItem *itm = m_listWidget->item(i);
+                        QString itemPath = itm->data(Qt::UserRole).toString();
+                        if (itemPath == path)
+                        {
+                            QString newTooltip = itm->toolTip();
+                            newTooltip.replace("计算中...", formatFileSize(size));
+                            itm->setToolTip(newTooltip);
+                            break;
+                        }
+                    }
+                });
+
+                // 启动计算
+                watcher->setFuture(QtConcurrent::run(calculateDirectorySize, fileInfo.filePath()));
+            }
         }
 
     }break;
@@ -425,5 +458,12 @@ void FileListWidget::clearFileList()
 {
     m_listWidget->clear();
     m_fileInfoList.clear();
+}
+
+QListWidgetItem* FileListWidget::getItemAtRow(const int row)
+{
+    if(row == -1 || m_listWidget == nullptr) return nullptr;
+
+    return m_listWidget->item(row);
 }
 

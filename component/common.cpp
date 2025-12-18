@@ -3,6 +3,9 @@
 #include <QDebug>
 #include <QEmfRenderer.h>
 #include <QPainter>
+#include <QDirIterator>
+#include <QFileInfo>
+#include <QThread>
 #include <Windows.h>
 
 QSettings globalSettings(QSettings::IniFormat, QSettings::UserScope, "BigData Lab", "Mouse Brain Analysis");
@@ -193,13 +196,53 @@ extern QPixmap getEMFPixmap(const QString& filePath, bool zoomIn, int minSize)
     return pix;
 }
 
-
-
 bool recursiveCopy(const QString& source,
                    const QString& destination,
                    const QStringList& excludeFileNames,
                    const QStringList& excludeDirNames,
                    bool allowCover) {
+    QThread::msleep(10); // 给 UI 喘口气
+
+    // 单独对文件处理，特判
+    QFileInfo src(source);
+    QFileInfo dst(destination);
+    if(src.isFile())
+    {
+        if(excludeFileNames.contains(src.fileName()))
+        {
+            // qDebug() << "Skipping excluded file:" << source;
+            return true;
+        }
+
+        if (dst.exists())
+        {
+            if(!allowCover)
+            {
+                // qDebug() << "Skipping existing file due to no-overwrite policy:" << destination;
+                return true;
+            }
+            else
+            {
+                // qDebug() << "Remove duplicate file due to overwrite policy:" << destination;
+                if (!QFile::remove(dst.absoluteFilePath())) {
+                    qWarning() << "Failed to remove existing file:" << destination;
+                    return false;
+                }
+            }
+        }
+
+        if (!QFile::copy(source, destination)) {
+            qWarning() << "Failed to copy file:" << source << "to" << destination;
+            return false;
+        }
+        else
+        {
+            return true;
+        }
+    }
+
+
+    // 处理目录递归复制
     QDir sourceDir(source);
     if (!sourceDir.exists()) {
         qWarning() << "Source directory does not exist:" << source;
@@ -220,27 +263,40 @@ bool recursiveCopy(const QString& source,
         QString sourcePath = entry.filePath();
         QString destPath = destination + QDir::separator() + entry.fileName();
 
-        if (excludeFileNames.contains(entry.fileName())) {
-            qDebug() << "Skipping excluded file or directory:" << sourcePath;
+        if (entry.isFile() && excludeFileNames.contains(entry.fileName()))
+        {
+            // qDebug() << "Skipping excluded file:" << sourcePath;
+            continue;
+        }
+        else if (entry.isDir()  && excludeDirNames.contains(entry.fileName()))
+        {
+            // qDebug() << "Skipping excluded directory:" << sourcePath;
             continue;
         }
 
-        if (entry.isDir() ) {
-            if (excludeDirNames.contains(entry.fileName())){
-                qDebug() << "Skipping excluded file or directory:" << sourcePath;
-                continue;
-            }
-
-            // Recursively copy subdirectories
-            if (!recursiveCopy(sourcePath, destPath, excludeFileNames, excludeDirNames, allowCover)) {
+        if (entry.isDir())
+        {
+            if (!recursiveCopy(sourcePath, destPath, excludeFileNames, excludeDirNames, allowCover))
                 return false;
-            }
-        } else {
-            // Handle files
+        }
+        else if(entry.isFile())
+        {
             QFile destFile(destPath);
-            if (destFile.exists() && !allowCover) {
-                qDebug() << "Skipping existing file due to no-overwrite policy:" << destPath;
-                continue;
+            if (destFile.exists())
+            {
+                if(!allowCover)
+                {
+                    // qDebug() << "Skipping existing file due to no-overwrite policy:" << destPath;
+                    continue;
+                }
+                else
+                {
+                    // qDebug() << "Remove duplicate file due to overwrite policy:" << destPath;
+                    if (!QFile::remove(destPath)) {
+                        qWarning() << "Failed to remove existing file:" << destPath;
+                        return false;
+                    }
+                }
             }
 
             if (!QFile::copy(sourcePath, destPath)) {
@@ -248,10 +304,50 @@ bool recursiveCopy(const QString& source,
                 return false;
             }
 
-            qDebug() << "Copied file:" << sourcePath << "to" << destPath;
+            // qDebug() << "Copied file:" << sourcePath << "to" << destPath;
         }
     }
 
     return true;
 }
 
+
+qint64 calculateDirectorySize(const QString &dirPath)
+{
+    qint64 totalSize = 0;
+    QDirIterator it(dirPath, QDir::Files | QDir::Dirs | QDir::NoDotAndDotDot,
+                    QDirIterator::Subdirectories); // 递归子目录
+
+    while (it.hasNext()) {
+        it.next();
+        QFileInfo info = it.fileInfo();
+        if (info.isFile()) {
+            totalSize += info.size();
+        }
+    }
+    return totalSize;
+}
+
+QString formatFileSize(qint64 bytes)
+{
+    if (bytes < 0) return "N/A";
+    if (bytes == 0) return "0 B";
+
+    static const QStringList units = {"B", "KB", "MB", "GB", "TB", "PB"};
+    int unitIndex = 0;
+    double size = static_cast<double>(bytes);
+
+    // 每 1024 进一阶；当 size ≥ 1024 且还有更高单位时，继续除
+    while (size >= 1024.0 && unitIndex < units.size() - 1) {
+        size /= 1024.0;
+        ++unitIndex;
+    }
+
+    // 根据数值大小决定小数位数（更美观）
+    int precision;
+    if (size >= 100.0)      precision = 0;   // 如 125 MB → 不要小数
+    else if (size >= 10.0)  precision = 1;   // 如 12.5 MB
+    else                    precision = 2;   // 如 1.23 MB
+
+    return QString::number(size, 'f', precision) + " " + units[unitIndex];
+}

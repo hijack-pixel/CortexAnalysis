@@ -94,12 +94,35 @@ QJsonValue ConfigSaver::variantToJsonValue(const QVariant &variant) {
                     QJsonArray intArray;
                     for (int i : vector)
                     {
+                        // qDebug() << "正在保存" << i ;
                         intArray.append(i);
                     }
                     jsonArray.append(intArray);
                 }
                 jsonObject[it.key()] = jsonArray;
             }
+            return QJsonValue(jsonObject);
+        }
+        // 添加对 QMap<QString, QVector<float>> 的处理
+        else if (variant.canConvert<QMap<QString, QVector<float>>>())
+        {
+            QJsonObject jsonObject;
+            QMap<QString, QVector<float>> map = variant.value<QMap<QString, QVector<float>>>();
+
+            for (auto it = map.constBegin(); it != map.constEnd(); ++it)
+            {
+                QJsonArray jsonArray;
+
+                // 遍历 QVector<float> 中的每个 float 值
+                for (const float &value : it.value())
+                {
+                    jsonArray.append(value);
+                    // qDebug() << "正在保存" << value;
+                }
+
+                jsonObject[it.key()] = jsonArray;
+            }
+
             return QJsonValue(jsonObject);
         }
         // 添加对QMap<QString, QString>的处理
@@ -110,7 +133,7 @@ QJsonValue ConfigSaver::variantToJsonValue(const QVariant &variant) {
             for (auto it = map.constBegin(); it != map.constEnd(); ++it)
             {
                 jsonObject[it.key()] = variantToJsonValue(it.value());
-                qDebug() << it.key() << it.value();
+                // qDebug() << it.key() << it.value();
             }
             return QJsonValue(jsonObject);
         }

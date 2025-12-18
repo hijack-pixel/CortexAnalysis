@@ -6,6 +6,7 @@
 #include "./component/clickablewidget.h"
 #include "./component/settingsdialog.h"
 #include "./component/dualslider.h"
+#include "./component/copyworker.h"
 
 #include <QHBoxLayout>
 #include <QVBoxLayout>
@@ -90,10 +91,10 @@ MainWindow::MainWindow(QWidget *parent): QMainWindow(parent), ui(new Ui::MainWin
     // 删除历史分析结果
     qDebug() << QDir::currentPath() << QCoreApplication::applicationDirPath();
     foreach (const auto& path, m_resultPath) {
-        #ifdef REDIRECT_DEBUG_OUTPUT
-            qDebug() << "Attempt to delete directory content: " << path;
-            deleteFolderContent(path);
-        #endif
+#ifdef REDIRECT_DEBUG_OUTPUT  // Release下才会删除data目录缓存
+        qDebug() << "Attempt to delete directory content: " << path;
+        deleteFolderContent(path);
+#endif
         qDebug() << "DEBUG Do not Attempt to delete directory content: " << path;
     }
 
@@ -266,7 +267,7 @@ MainWindow::MainWindow(QWidget *parent): QMainWindow(parent), ui(new Ui::MainWin
     ui->verticalLayoutFileList->addWidget(m_fileListWidget);
     // ui->graphicsView->enableFreeDraw();
     // ui->graphicsView->enableRectDraw();
-    connect(m_fileListWidget, &FileListWidget::itemCurrent, this, [&](const QString& path, const FileType fileType){
+    connect(m_fileListWidget, &FileListWidget::itemCurrent, this, [&](const QString& path, const FileType fileType, const int row){
         switch (fileType) {
         case FileType::IMAGE:
             ui->graphicsView->setImgByPath(path);
@@ -275,22 +276,15 @@ MainWindow::MainWindow(QWidget *parent): QMainWindow(parent), ui(new Ui::MainWin
             ui->tablePreview->loadExcel(path);
             break;
         case FileType::OTHERS:
-            if(path.isEmpty()){
+            if(path.isEmpty() && row == -1){
                 ui->othersPreviewLabel->setText("");
             }
             else{
-                QFileInfo fileInfo(path);
                 ui->othersPreviewLabel->setText(
-                    QString("<b>不支持预览该类型文件:</b> %1").arg(
-                        fileInfo.suffix() + "<br><br>" +
-                        "<b>文件名&nbsp;&nbsp;&nbsp;：</b>" + fileInfo.fileName() + "<br>" +
-                        "<b>文件大小：</b>" + QString::number(static_cast<double>(fileInfo.size()) / (1024 * 1024), 'g', 2) + " MB" + "<br>" +
-                        "<b>存储路径：</b>" + fileInfo.filePath() + "<br>" +
-                        "<b>创建时间：</b>" + fileInfo.fileTime(QFileDevice::FileBirthTime).toString("yyyy-MM-dd HH:mm:ss")  + "<br>" +
-                        "<b>修改时间：</b>" + fileInfo.fileTime(QFileDevice::FileModificationTime).toString("yyyy-MM-dd HH:mm:ss")
-                    )
+                    m_fileListWidget->getItemAtRow(row)->toolTip()
                 );
             }
+
             break;
         }
     });
@@ -300,6 +294,7 @@ MainWindow::MainWindow(QWidget *parent): QMainWindow(parent), ui(new Ui::MainWin
     connect(ui->pushButtonImgTab, &QPushButton::clicked, this, [&](){
         QPushButton *button = qobject_cast<QPushButton*>(sender());
         if(button) button->setDisabled(true);
+        ui->graphicsView->setImgByPath("");  // 加载前清空图片显示
         m_fileListWidget->setFilePath(m_resultPath[m_currentDisplay], FileType::IMAGE);
         ui->graphicsView->setHidden(false);
         ui->tablePreview->setHidden(true);
@@ -311,6 +306,7 @@ MainWindow::MainWindow(QWidget *parent): QMainWindow(parent), ui(new Ui::MainWin
 
     // 表格tab
     connect(ui->pushButtonTableTab, &QPushButton::clicked, this, [&](){
+        ui->tablePreview->clearContent();  // 加载前清除表格内容
         m_fileListWidget->setFilePath(m_resultPath[m_currentDisplay], FileType::TABLE);
         ui->graphicsView->setHidden(true);
         ui->tablePreview->setHidden(false);
@@ -319,6 +315,8 @@ MainWindow::MainWindow(QWidget *parent): QMainWindow(parent), ui(new Ui::MainWin
 
     // 其他tab
     connect(ui->pushButtonOtherTab, &QPushButton::clicked, this, [&](){
+        ui->othersPreviewLabel->setText("");  // 加载前清除内容
+        ui->othersPreviewLabel->setTextInteractionFlags(Qt::TextSelectableByMouse | Qt::TextSelectableByKeyboard);
         m_fileListWidget->setFilePath(m_resultPath[m_currentDisplay], FileType::OTHERS);
         ui->graphicsView->setHidden(true);
         ui->tablePreview->setHidden(true);
@@ -367,7 +365,7 @@ MainWindow::MainWindow(QWidget *parent): QMainWindow(parent), ui(new Ui::MainWin
         QRect settingRect = m_widgetDataSetting_1->geometry();
         QSize btnSize = ui->pushButtonRun->size();
         QRect btnRect;
-        int padding = 5;
+        int padding = 0;
         btnRect.setLeft(settingRect.width() - btnSize.width() - padding*2 + settingRect.left() );
         btnRect.setTop(settingRect.height() - btnSize.height() - padding*2 + settingRect.top() );
         btnRect.setWidth(btnSize.width() + padding*2);
@@ -700,10 +698,28 @@ void MainWindow::on_exitAction()
     QPushButton *cancelButton = msgBox.addButton(tr("取消"), QMessageBox::RejectRole);
     msgBox.setDefaultButton(saveDefaultButton);
 
-    auto saveFileToDefaultLocation = [this](){
+    const QStringList excludeFileName = {"progress.txt", "config.json", "MyExecutable.exe", "exec.bat"};
+    const QStringList excludeFolderName = {"Toolbox4PYCM"};
+
+    auto onCopyWorkerFinished = [](bool success, const QStringList &failed)
+    {
+        // 等待 CopyWorker 处理完信号
+        QCoreApplication::sendPostedEvents(nullptr, QEvent::MetaCall);
+        QCoreApplication::processEvents();
+
+        qApp->quit();   // 真正退出时机
+        qDebug() << tr("程序退出");
+    };
+
+
+    int ret = msgBox.exec();
+    qDebug() << ret;
+
+    if(msgBox.clickedButton() == saveDefaultButton)
+    {
         QDir dir(m_config[SETTINGS]["history_analysis_directory"].toString());
 
-        // 如果目录不存在，则创建
+        // 如果history_analysis目录不存在，则创建
         if (!dir.exists()) {
             if (!dir.mkpath(dir.absolutePath())) {
                 qDebug() << "Failed to create directory:" << dir.absolutePath();
@@ -719,49 +735,41 @@ void MainWindow::on_exitAction()
             return;
         }
 
-        bool ret;
-        ret = recursiveCopy(QDir::cleanPath(QCoreApplication::applicationDirPath() + "/data"),
-                            timeFolder,
-                            QStringList({"progress.txt", "config.json", "MyExecutable.exe", "exec.bat"}),
-                            QStringList({"Toolbox4PYCM"}),
-                            true);
-        if(!ret) qDebug() << QString("Copy %1 to %2, some mistankens happend....")
-                            .arg(QDir::cleanPath(QCoreApplication::applicationDirPath() + "/data" ), timeFolder);
-    };
-
-    auto saveFileToCustomLocation = [this](){
-        QString directory = QFileDialog::getExistingDirectory(this,
-                                                              "选择保存目录",
-                                                              QCoreApplication::applicationDirPath(),
-                                                              QFileDialog::ShowDirsOnly | QFileDialog::DontResolveSymlinks);
-        if (directory.isEmpty()) {
-            qDebug() << "用户取消了目录选择。";
-            return;
+        // 移动 data 到时间文件夹
+        QList<QPair<QString, QString>> tasks;
+        foreach(const auto &data, m_resultPath) {
+            QString subDir = QDir(data).dirName();          // 取出 data 目录名
+            tasks.append({data, timeFolder + QDir::separator() + subDir});
         }
-        qDebug() << "选择的保存目录是：" << directory;
 
-        bool ret;
-        ret = recursiveCopy(QDir::cleanPath(QCoreApplication::applicationDirPath() + "/data"),
-                            directory,
-                            QStringList({"progress.txt", "config.json", "MyExecutable.exe", "exec.bat"}),
-                            QStringList({"Toolbox4PYCM"}),
-                            true);
-        if(!ret) qDebug() << QString("Copy %1 to %2, some mistankens happend....")
-                            .arg(QDir::cleanPath(QCoreApplication::applicationDirPath() + "/data" ), directory);
-    };
+        CopyWorker* copyWorker = new CopyWorker(this);
+        connect(copyWorker, &CopyWorker::finished, this, onCopyWorkerFinished);
+        copyWorker->start(tasks, excludeFileName, excludeFolderName);
 
-    int ret = msgBox.exec();
-    qDebug() << ret;
-
-    if(msgBox.clickedButton() == saveDefaultButton)
-    {
-        saveFileToDefaultLocation();
-        qApp->quit();
     }
     else if(msgBox.clickedButton() == saveCustomButton)
     {
-        saveFileToCustomLocation();
-        qApp->quit();
+        QString targetDir = QFileDialog::getExistingDirectory(this,
+                                                              "选择保存目录",
+                                                              QCoreApplication::applicationDirPath(),
+                                                              QFileDialog::ShowDirsOnly | QFileDialog::DontResolveSymlinks);
+        if (targetDir.isEmpty()) {
+            qDebug() << "用户取消了目录选择。";
+            return;
+        }
+        qDebug() << "选择的保存目录是：" << targetDir;
+
+
+        // 移动 data 到 targetDir
+        QList<QPair<QString, QString>> tasks;
+        foreach(const auto &data, m_resultPath) {
+            QString subDir = QDir(data).dirName();          // 取出 data 目录名
+            tasks.append({data, targetDir + QDir::separator() + subDir});
+        }
+
+        CopyWorker* copyWorker = new CopyWorker(this);
+        connect(copyWorker, &CopyWorker::finished, this, onCopyWorkerFinished);
+        copyWorker->start(tasks, excludeFileName, excludeFolderName);
     }
     else if(msgBox.clickedButton() == discardButton)
     {
@@ -1188,26 +1196,41 @@ void MainWindow::initDataSettingPage1()
 
     // 添加坐标输入框
     QGridLayout *gridPoint = new QGridLayout();
+    gridPoint->setContentsMargins(QMargins(0, 6, 0, 6));
     gridPoint->addWidget(comboBoxSelectMouse, 0, 0, 1, 6);
     gridPoint->addWidget(pushButtonPointTXTImport, 0, 6, 1, 3);
 
-    gridPoint->addWidget(new QLabel(tr("坐标1 (B): ")), 2, 0, 1, 1);
     QHBoxLayout *hLayoutForPoint1 = new QHBoxLayout();
-    hLayoutForPoint1->addWidget(new QLabel(tr("(")), 1);
-    hLayoutForPoint1->addWidget(spinBoxPointX1, 7);
+    hLayoutForPoint1->addWidget(new QLabel(tr("坐标1 (B): (")), 2);
+    hLayoutForPoint1->addWidget(spinBoxPointX1, 9);
     hLayoutForPoint1->addWidget(new QLabel(tr(",")), 1);
-    hLayoutForPoint1->addWidget(spinBoxPointY1, 7);
+    hLayoutForPoint1->addWidget(spinBoxPointY1, 9);
     hLayoutForPoint1->addWidget(new QLabel(tr(")")));
-    gridPoint->addLayout(hLayoutForPoint1, 2, 1, 1, 4);
+    gridPoint->addLayout(hLayoutForPoint1, 1, 0, 1, 4);
 
-    gridPoint->addWidget(new QLabel(tr("坐标2 (Λ): ")), 3, 0, 1, 1);
     QHBoxLayout *hLayoutForPoint2 = new QHBoxLayout();
-    hLayoutForPoint2->addWidget(new QLabel(tr("(")), 1);
-    hLayoutForPoint2->addWidget(spinBoxPointX2, 7);
+    hLayoutForPoint2->setContentsMargins(QMargins(20, 0, 0, 0));
+    hLayoutForPoint2->addWidget(new QLabel(tr("坐标2 (Λ): (")), 2);
+    hLayoutForPoint2->addWidget(spinBoxPointX2, 9);
     hLayoutForPoint2->addWidget(new QLabel(tr(",")), 1);
-    hLayoutForPoint2->addWidget(spinBoxPointY2, 7);
+    hLayoutForPoint2->addWidget(spinBoxPointY2, 9);
     hLayoutForPoint2->addWidget(new QLabel(tr(")")));
-    gridPoint->addLayout(hLayoutForPoint2, 3, 1, 1, 4);
+    gridPoint->addLayout(hLayoutForPoint2, 1, 4, 1, 4);
+
+
+    // 采样频率
+    QLabel *labelSampleFreq = new QLabel(tr("采样频率"));
+
+    QSpinBox *spinBoxSampleFreq = new QSpinBox();
+    spinBoxSampleFreq->setRange(0, 50);
+    spinBoxSampleFreq->setValue(30);
+    spinBoxSampleFreq->setSingleStep(1);
+    spinBoxSampleFreq->setButtonSymbols(QSpinBox::NoButtons);
+
+    QHBoxLayout *hLayoutForSampleFreq = new QHBoxLayout();
+    hLayoutForSampleFreq->setAlignment(Qt::AlignLeft);
+    hLayoutForSampleFreq->addWidget(spinBoxSampleFreq);
+    hLayoutForSampleFreq->addWidget(new QLabel(tr("Hz")));
 
     comboBoxSelectMouse->setDisabled(true);
     spinBoxMouseNum->setDisabled(true);
@@ -1217,6 +1240,9 @@ void MainWindow::initDataSettingPage1()
     spinBoxPointY1->setDisabled(true);
     spinBoxPointY2->setDisabled(true);
     pushButtonPointTXTImport->setDisabled(true);
+
+    // 设置默认值
+    m_config[STEP1]["sample_rate"] = spinBoxSampleFreq->value();
 
     // 选择文件目录，按照前缀来自动识别文件并分组
     auto on_selectDirectory = [&, comboBoxSelectMouse, lineEditDirectory, spinBoxMouseNum, spinBoxTifNum, spinBoxPointX1, spinBoxPointX2, spinBoxPointY1, spinBoxPointY2, pushButtonPointTXTImport](){
@@ -1494,6 +1520,9 @@ void MainWindow::initDataSettingPage1()
         dialog.exec();
     };
 
+    auto on_sampleFreqChange = [&](const int x){
+        m_config[STEP2]["sample_rate"] = x;
+    };
 
     connect(pushButtonDirectory, &QPushButton::clicked, this, on_selectDirectory);
     connect(spinBoxPointX1, QOverload<int>::of (&QSpinBox::valueChanged), this, on_pointX1Change);
@@ -1503,8 +1532,10 @@ void MainWindow::initDataSettingPage1()
     connect(comboBoxSelectMouse, &QComboBox::currentTextChanged, this, on_comboxSelectChange);
     connect(pushButtonPointTXTImport, &QPushButton::clicked, this, on_buttonTXTImport);
     connect(pushButtonDetail, &QPushButton::clicked, this, on_showDataDetail);
+    connect(spinBoxSampleFreq, QOverload<int>::of (&QSpinBox::valueChanged), this, on_sampleFreqChange);
 
     // 数据选择框添加控件
+    grid->setAlignment(Qt::AlignTop);
     grid->addWidget(labelDirectory, 0, 0, 1, 1);
     grid->addLayout(hLayoutForDirectory, 0, 1, 1, 5);
 
@@ -1513,8 +1544,11 @@ void MainWindow::initDataSettingPage1()
     grid->addWidget(spinBoxTifNum, 1, 3, 1, 2);
     grid->addWidget(pushButtonDetail, 1, 5, 1, 1);
 
-    grid->addWidget(labelPoint, 2, 0, 1, 1);
-    grid->addLayout(gridPoint, 2, 1, 1, 5);
+    grid->addWidget(labelPoint, 2, 0, 2, 1);
+    grid->addLayout(gridPoint, 2, 1, 2, 5);
+
+    grid->addWidget(labelSampleFreq, 4, 0, 1, 1);
+    grid->addLayout(hLayoutForSampleFreq, 4, 1, 1, 2);
     m_widgetDataSetting_1->setLayout(grid);
 }
 
@@ -1550,7 +1584,7 @@ void MainWindow::initDataSettingPage2()
     spinBoxRight->setSingleStep(0.01);
     spinBoxRight->setButtonSymbols(QSpinBox::NoButtons);  
 
-    QLabel *labelHzLeft = new QLabel("Hz       ~ ");
+    QLabel *labelHzLeft = new QLabel("Hz    ~ ");
     QLabel *labelHzRight = new QLabel("Hz");
 
     QHBoxLayout *hLayoutForFrequency = new QHBoxLayout();
@@ -1562,9 +1596,123 @@ void MainWindow::initDataSettingPage2()
     hLayoutForFrequency->addWidget(spinBoxRight);
     hLayoutForFrequency->addWidget(labelHzRight);
 
+    // 阈值
+    QLabel *labelThreshold = new QLabel(tr("网络差异图阈值上限"));
+    QDoubleSpinBox *spinBoxThreshold = new QDoubleSpinBox();
+    spinBoxThreshold->setRange(0, 10);
+    spinBoxThreshold->setValue(0.05);
+    spinBoxThreshold->setDecimals(2);
+    spinBoxThreshold->setSingleStep(0.01);
+    spinBoxThreshold->setButtonSymbols(QSpinBox::NoButtons);
+    spinBoxThreshold->setFixedWidth(100);
+
+    // 颜色条range
+    QMap<QString, QVector<float>> colorbarMap = {
+        {"con", {0.6f, 1.0f}},
+        {"mut", {0.6f, 1.0f}},
+        {"diff", {-0.2f, 0.3f}}
+    };
+    QLabel *labelColorBarRange = new QLabel(tr("连通矩阵颜色条阈值"));
+    DualSlider *slideColorCON = new DualSlider();
+    DualSlider *slideColorMUT = new DualSlider();
+    DualSlider *slideColorDIFF = new DualSlider();
+    slideColorCON->setRange(0, 200);
+    slideColorDIFF->setRange(0, 200);
+    slideColorMUT->setRange(0, 200);
+    slideColorCON->setHandleSize(5);
+    slideColorMUT->setHandleSize(5);
+    slideColorDIFF->setHandleSize(5);
+    qDebug() << (colorbarMap["con"][0]*100+100) << (colorbarMap["con"][1]*100+100);
+    slideColorCON->setRightValue(colorbarMap["con"][1]*100+100);
+    slideColorCON->setLeftValue(colorbarMap["con"][0]*100+100);
+    slideColorMUT->setRightValue(colorbarMap["mut"][1]*100+100);
+    slideColorMUT->setLeftValue(colorbarMap["mut"][0]*100+100);
+    slideColorDIFF->setRightValue(colorbarMap["diff"][1]*100+100);
+    slideColorDIFF->setLeftValue(colorbarMap["diff"][0]*100+100);
+
+    QDoubleSpinBox *spinBoxColorCONLeft = new QDoubleSpinBox();
+    spinBoxColorCONLeft->setRange(-1, 1);
+    spinBoxColorCONLeft->setValue(colorbarMap["con"][0]);
+    spinBoxColorCONLeft->setDecimals(2);
+    spinBoxColorCONLeft->setSingleStep(0.01);
+    spinBoxColorCONLeft->setButtonSymbols(QSpinBox::NoButtons);
+    QDoubleSpinBox *spinBoxColorCONRight = new QDoubleSpinBox();
+    spinBoxColorCONRight->setRange(-1, 1);
+    spinBoxColorCONRight->setValue(colorbarMap["con"][1]);
+    spinBoxColorCONRight->setDecimals(2);
+    spinBoxColorCONRight->setSingleStep(0.01);
+    spinBoxColorCONRight->setButtonSymbols(QSpinBox::NoButtons);
+
+    QDoubleSpinBox *spinBoxColorMUTLeft = new QDoubleSpinBox();
+    spinBoxColorMUTLeft->setRange(-1, 1);
+    spinBoxColorMUTLeft->setValue(colorbarMap["mut"][0]);
+    spinBoxColorMUTLeft->setDecimals(2);
+    spinBoxColorMUTLeft->setSingleStep(0.01);
+    spinBoxColorMUTLeft->setButtonSymbols(QSpinBox::NoButtons);
+    QDoubleSpinBox *spinBoxColorMUTRight = new QDoubleSpinBox();
+    spinBoxColorMUTRight->setRange(-1, 1);
+    spinBoxColorMUTRight->setValue(colorbarMap["mut"][1]);
+    spinBoxColorMUTRight->setDecimals(2);
+    spinBoxColorMUTRight->setSingleStep(0.01);
+    spinBoxColorMUTRight->setButtonSymbols(QSpinBox::NoButtons);
+
+    QDoubleSpinBox *spinBoxColorDIFFLeft = new QDoubleSpinBox();
+    spinBoxColorDIFFLeft->setRange(-1, 1);
+    spinBoxColorDIFFLeft->setValue(colorbarMap["diff"][0]);
+    spinBoxColorDIFFLeft->setDecimals(2);
+    spinBoxColorDIFFLeft->setSingleStep(0.01);
+    spinBoxColorDIFFLeft->setButtonSymbols(QSpinBox::NoButtons);
+    QDoubleSpinBox *spinBoxColorDIFFRight = new QDoubleSpinBox();
+    spinBoxColorDIFFRight->setRange(-1, 1);
+    spinBoxColorDIFFRight->setValue(colorbarMap["diff"][1]);
+    spinBoxColorDIFFRight->setDecimals(2);
+    spinBoxColorDIFFRight->setSingleStep(0.01);
+    spinBoxColorDIFFRight->setButtonSymbols(QSpinBox::NoButtons);
+
+
+    QHBoxLayout *hlayoutCON = new QHBoxLayout();
+    hlayoutCON->setAlignment(Qt::AlignLeft);
+    hlayoutCON->setSpacing(5);
+    hlayoutCON->addWidget(new QLabel(tr("CON")));
+    hlayoutCON->addWidget(spinBoxColorCONLeft);
+    hlayoutCON->addWidget(spinBoxColorCONRight);
+
+    QHBoxLayout *hlayoutMUT = new QHBoxLayout();
+    hlayoutMUT->setAlignment(Qt::AlignLeft);
+    hlayoutMUT->setSpacing(5);
+    hlayoutMUT->addWidget(new QLabel(tr("MUT")));
+    hlayoutMUT->addWidget(spinBoxColorMUTLeft);
+    hlayoutMUT->addWidget(spinBoxColorMUTRight);
+
+    QHBoxLayout *hlayoutDIFF = new QHBoxLayout();
+    hlayoutDIFF->setAlignment(Qt::AlignLeft);
+    hlayoutDIFF->setSpacing(5);
+    hlayoutDIFF->addWidget(new QLabel(tr("DIFF")));
+    hlayoutDIFF->addWidget(spinBoxColorDIFFLeft);
+    hlayoutDIFF->addWidget(spinBoxColorDIFFRight);
+
+    QVBoxLayout *vlayoutCON = new QVBoxLayout();
+    vlayoutCON->addLayout(hlayoutCON);
+    vlayoutCON->addWidget(slideColorCON);
+
+    QVBoxLayout *vlayoutMUT = new QVBoxLayout();
+    vlayoutMUT->addLayout(hlayoutMUT);
+    vlayoutMUT->addWidget(slideColorMUT);
+
+    QVBoxLayout *vlayoutDIFF = new QVBoxLayout();
+    vlayoutDIFF->addLayout(hlayoutDIFF);
+    vlayoutDIFF->addWidget(slideColorDIFF);
+
+    QHBoxLayout *hlayout = new QHBoxLayout();
+    hlayout->addLayout(vlayoutCON);
+    hlayout->addLayout(vlayoutMUT);
+    hlayout->addLayout(vlayoutDIFF);
+
     // 设置默认值
     m_config[STEP2]["begin"] = spinBoxLeft->value();
     m_config[STEP2]["last"] = spinBoxRight->value();
+    m_config[STEP2]["threshold_val"] = spinBoxThreshold->value();
+    m_config[STEP2]["colorbar_ranges"] = QVariant::fromValue(colorbarMap);
 
     auto on_selectCONFile = [&, lineEditCON](){
         QString fullPath = QFileDialog::getOpenFileName(
@@ -1618,18 +1766,99 @@ void MainWindow::initDataSettingPage2()
         m_config[STEP2]["input_files"] = QVariant::fromValue(map);
     };
 
-    auto on_frequencyLeftChange = [&](double value){
-        m_config[STEP2]["begin"] = value;
+    auto on_frequencyLeftChange = [&, spinBoxLeft, spinBoxRight](double value){
+        if(value < spinBoxRight->value())  // 比右边小
+            m_config[STEP2]["begin"] = value;
+        else
+            spinBoxLeft->setValue(spinBoxRight->value());
     };
 
-    auto on_frequencyRightChange = [&](double value){
+    auto on_frequencyRightChange = [&, spinBoxLeft, spinBoxRight](double value){
+        if(value > spinBoxLeft->value())  // 比左边大
             m_config[STEP2]["last"] = value;
+        else
+            spinBoxRight->setValue(spinBoxLeft->value());
+    };
+
+    auto on_thresholdChange = [&](double value){
+        m_config[STEP2]["threshold_val"] = value;
+    };
+
+    qDebug() << "nihao" << colorbarMap << colorbarMap["con"];
+    auto on_slideColorCONChange = [&, spinBoxColorCONLeft, spinBoxColorCONRight, colorbarMap](int left, int right) mutable {
+        double leftValue = (left - 100.0)/100;
+        double rightValue = (right - 100.0)/100;
+        spinBoxColorCONLeft->setValue(leftValue);
+        spinBoxColorCONRight->setValue(rightValue);
+        colorbarMap["con"][0] = spinBoxColorCONLeft->value();
+        colorbarMap["con"][1] = spinBoxColorCONRight->value();
+        m_config[STEP2]["colorbar_ranges"] = QVariant::fromValue(colorbarMap);
+    };
+
+    auto on_spinBoxColorCONLeftValueChange = [&, slideColorCON](double left) {
+        slideColorCON->setLeftValue(left*100+100);
+    };
+
+    auto on_spinBoxColorCONRightValueChange = [&, slideColorCON](double right) {
+        slideColorCON->setRightValue(right*100+100);
+    };
+
+    auto on_slideColorMUTChange = [&, spinBoxColorMUTLeft, spinBoxColorMUTRight, colorbarMap](int left, int right) mutable {
+        double leftValue = (left - 100.0)/100;
+        double rightValue = (right - 100.0)/100;
+        spinBoxColorMUTLeft->setValue(leftValue);
+        spinBoxColorMUTRight->setValue(rightValue);
+        colorbarMap["mut"][0] = spinBoxColorMUTLeft->value();
+        colorbarMap["mut"][1] = spinBoxColorMUTRight->value();
+        m_config[STEP2]["colorbar_ranges"] = QVariant::fromValue(colorbarMap);
+    };
+
+    auto on_spinBoxColorMUTLeftValueChange = [&, slideColorMUT](double left) {
+        slideColorMUT->setLeftValue(left*100+100);
+    };
+
+    auto on_spinBoxColorMUTRightValueChange = [&, slideColorMUT](double right)
+    {
+        slideColorMUT->setRightValue(right*100+100);
+    };
+
+    auto on_slideColorDIFFChange = [&, spinBoxColorDIFFLeft, spinBoxColorDIFFRight, colorbarMap](int left, int right) mutable {
+        double leftValue = (left - 100.0)/100;
+        double rightValue = (right - 100.0)/100;
+        spinBoxColorDIFFLeft->setValue(leftValue);
+        spinBoxColorDIFFRight->setValue(rightValue);
+        colorbarMap["diff"][0] = spinBoxColorDIFFLeft->value();
+        colorbarMap["diff"][1] = spinBoxColorDIFFRight->value();
+        m_config[STEP2]["colorbar_ranges"] = QVariant::fromValue(colorbarMap);
+    };
+
+    auto on_spinBoxColorDIFFLeftValueChange = [&, slideColorDIFF](double left)
+    {
+        slideColorDIFF->setLeftValue(left*100+100);
+    };
+   
+    auto on_spinBoxColorDIFFRightValueChange = [&, slideColorDIFF](double right)
+    {
+        slideColorDIFF->setRightValue(right*100+100);
     };
 
     connect(pushButtonSelectCON, &QPushButton::clicked, this, on_selectCONFile);
     connect(pushButtonSelectMUT, &QPushButton::clicked, this, on_selectMUTFile);
     connect(spinBoxLeft, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this, on_frequencyLeftChange);
     connect(spinBoxRight, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this, on_frequencyRightChange);
+    connect(spinBoxThreshold,  QOverload<double>::of(&QDoubleSpinBox::valueChanged), this, on_thresholdChange);
+
+    connect(slideColorCON, &DualSlider::valuesChanged, this, on_slideColorCONChange);
+    connect(spinBoxColorCONLeft, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this, on_spinBoxColorCONLeftValueChange);
+    connect(spinBoxColorCONRight, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this, on_spinBoxColorCONRightValueChange);
+
+    connect(slideColorMUT, &DualSlider::valuesChanged, this, on_slideColorMUTChange);
+    connect(spinBoxColorMUTLeft, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this, on_spinBoxColorMUTLeftValueChange);
+    connect(spinBoxColorMUTRight, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this, on_spinBoxColorMUTRightValueChange);
+
+    connect(slideColorDIFF, &DualSlider::valuesChanged, this, on_slideColorDIFFChange);
+    connect(spinBoxColorDIFFLeft, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this, on_spinBoxColorDIFFLeftValueChange);
+    connect(spinBoxColorDIFFRight, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this, on_spinBoxColorDIFFRightValueChange);
 
     grid->addWidget(labelCON, 0, 0);
     grid->addWidget(lineEditCON, 0, 1);
@@ -1639,8 +1868,15 @@ void MainWindow::initDataSettingPage2()
     grid->addWidget(lineEditMUT, 1, 1);
     grid->addWidget(pushButtonSelectMUT, 1, 2);
 
-    grid->addWidget(labelFrequency, 2, 0);
-    grid->addLayout(hLayoutForFrequency, 2, 1);
+    grid->addWidget(labelColorBarRange, 2, 0);
+    grid->addLayout(hlayout, 2, 1, 1, 2);
+
+    grid->addWidget(labelFrequency, 3, 0);
+    grid->addLayout(hLayoutForFrequency, 3, 1);
+
+    grid->addWidget(labelThreshold, 4, 0);
+    grid->addWidget(spinBoxThreshold, 4, 1, 1, 1);
+
 
     grid->setAlignment(Qt::AlignTop);
     m_widgetDataSetting_2->setLayout(grid);
@@ -1704,7 +1940,7 @@ void MainWindow::initDataSettingPage3()
     spinBoxRight->setSingleStep(0.01);
     spinBoxRight->setButtonSymbols(QSpinBox::NoButtons);
 
-    QLabel *labelHzLeft = new QLabel("Hz       ~ ");
+    QLabel *labelHzLeft = new QLabel("Hz  ~ ");
     QLabel *labelHzRight = new QLabel("Hz");
 
     QHBoxLayout *hLayoutForFrequency = new QHBoxLayout();
@@ -1895,12 +2131,18 @@ void MainWindow::initDataSettingPage3()
     };
 
 
-    auto on_spinBoxLeftValueChanged = [&](double left) {
-        m_config[STEP3]["begin"] = left;
+    auto on_spinBoxLeftValueChanged = [&, spinBoxLeft, spinBoxRight](double left) {
+        if(left < spinBoxRight->value())  // 比左边大
+            m_config[STEP3]["begin"] = left;
+        else
+            spinBoxLeft->setValue(spinBoxRight->value());
     };
 
-    auto on_spinBoxRightValueChanged = [&](double right) {
-        m_config[STEP3]["last"] = right;
+    auto on_spinBoxRightValueChanged = [&, spinBoxLeft, spinBoxRight](double right) {
+        if(right > spinBoxLeft->value())  // 比左边大
+            m_config[STEP3]["last"] = right;
+        else
+            spinBoxRight->setValue(spinBoxLeft->value());
     };
 
     connect(spinBoxLeft, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this, on_spinBoxLeftValueChanged);
@@ -2750,7 +2992,7 @@ void MainWindow::resizeEvent(QResizeEvent *event)
     QRect settingRect = ui->groupBoxData->geometry();
     QSize btnSize = ui->pushButtonRun->size();
     QRect btnRect;
-    int padding = 5;
+    int padding = 3;
     btnRect.setLeft(settingRect.width() - btnSize.width() - padding*2 + settingRect.left() );
     btnRect.setTop(settingRect.height() - btnSize.height() - padding*2 + settingRect.top() );
     btnRect.setWidth(btnSize.width() + padding*2);

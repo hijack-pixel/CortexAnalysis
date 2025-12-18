@@ -69,6 +69,25 @@ TableWidget::~TableWidget()
     // 析构函数清理
 }
 
+void TableWidget::clearContent()
+{
+    // 清空现有内容，展示控件
+    m_tableWidget->clear();
+    m_tableWidget->setHidden(true);
+    m_scrollArea->setHidden(true);
+
+    // 删除sheetButtonGroup中的所有按钮，并从布局中移除
+    QList<QAbstractButton*> buttons = m_sheetButtonGroup->buttons();
+    if (!buttons.isEmpty()) {
+        foreach (QAbstractButton *button, buttons) {
+            m_sheetButtonLayout->removeWidget(button);
+            m_sheetButtonGroup->removeButton(button);
+            button->disconnect();
+            button->deleteLater();
+        }
+    }
+}
+
 void TableWidget::openFile()
 {
     // loadExcel("E:\\TEMP\\MouseAnalysisData\\反馈建议\\导出表格数据范例\\STEP 2 联通网络\\Average原始矩阵数据.xlsx");return;
@@ -86,6 +105,16 @@ void TableWidget::loadExcel(const QString &filePath)
     }
     m_filePath = filePath;
 
+    /* ---------- 新增：文件大小限制 ---------- */
+    QFileInfo fi(m_filePath);
+    if (fi.size() > MAX_FILE_SIZE)
+    {
+        showFileOpenButton();           // 直接显示“用 Excel 打开”按钮
+        return;                         // 不再走 xlnt 解析
+    }
+    /* --------------------------------------- */
+
+
     // 清空现有内容，展示控件
     m_tableWidget->clear();
     m_tableWidget->setHidden(false);
@@ -99,7 +128,7 @@ void TableWidget::loadExcel(const QString &filePath)
 
         // 获取所有Sheet
         m_sheets.clear();
-        for (auto sheet : wb) {
+        for (const auto& sheet : wb) {
             m_sheets.push_back(QString::fromStdString((sheet.title())));
         }
 
@@ -151,7 +180,15 @@ void TableWidget::showSheet(int sheetIndex)
     for (int row = 1; row <= ws.highest_row(); ++row) {
         for (int col = 1; col <= ws.highest_column(); ++col) {
             auto cell = ws.cell(xlnt::cell_reference(col, row));
-            m_tableWidget->setItem(row - 1, col - 1, new QTableWidgetItem(QString::fromStdString(cell.to_string())));
+            if(xlnt::cell_type::number == cell.data_type())
+            {
+                // 如果是数字就转成double显示，默认的to_string会损失精度
+                m_tableWidget->setItem(row - 1, col - 1, new QTableWidgetItem(QString::number(cell.value<double>())));
+            }
+            else
+            {
+                m_tableWidget->setItem(row - 1, col - 1, new QTableWidgetItem(QString::fromStdString(cell.to_string())));
+            }
         }
     }
 

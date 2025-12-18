@@ -49,7 +49,6 @@ enum FileType
 // 注册 FileType
 Q_DECLARE_METATYPE(FileType);
 
-
 // 保存全局配置
 extern QSettings globalSettings;
 
@@ -82,11 +81,18 @@ extern bool deleteFolderContent(const QString &folderPath);
 extern QPixmap getEMFPixmap(const QString& filePath, bool zoomIn = false, int minSize = 50);
 
 // 递归复制
-extern bool recursiveCopy(const QString& source, const QString& destination, const QStringList& excludeFileNames, const QStringList& excludeDirNames, bool allowCover);
+extern bool recursiveCopy(
+    const QString& source,
+    const QString& destination,
+    const QStringList& excludeFileNames = {},
+    const QStringList& excludeDirNames = {},
+    bool allowCover = false);
 
+// 计算目录总大小（字节），支持递归
+extern qint64 calculateDirectorySize(const QString &dirPath);
 
-
-
+// 通用的 字节转人类可读单位（B/KB/MB/GB/TB） 的函数
+extern QString formatFileSize(qint64 bytes);
 
 
 #endif // COMMON_H

@@ -26,8 +26,10 @@ void customMessageHandler(QtMsgType type, const QMessageLogContext &context, con
 int main(int argc, char *argv[])
 {
     //设置输出信息的格式
-    QString pattern="[%{file}] [%{function}] [%{line}] %{message}";
-    qSetMessagePattern(pattern);
+    // QString pattern="[%{time}] [%{file}] [%{function} : %{line}] %{message}";
+    // qSetMessagePattern(pattern);
+    // 带毫秒
+    qSetMessagePattern("[%{time HH:mm:ss.zzz}][%{function}:%{line}] %{message}");
 
     debugFile.open(QIODevice::WriteOnly | QIODevice::Text);
 
@@ -53,7 +55,7 @@ int main(int argc, char *argv[])
     // 主窗口运行
     MainWindow w;
     w.setWindowIcon(QIcon(":/icon/logo.svg"));
-    w.setWindowTitle(QString("大脑皮层成像分析软件 V0.5"));
+    w.setWindowTitle(QString("大脑皮层成像分析软件 V0.9"));
     w.show();
 
     // xlnt::workbook wb;

@@ -22,8 +22,10 @@ LIBS += -lgdi32 -luser32
 
 ## emf预览库
 INCLUDEPATH += $$PWD/component/libqemf
-SOURCES += $$files($$PWD/component/libqemf/*.cpp, true)
-HEADERS += $$files($$PWD/component/libqemf/*.h, true)
+SOURCES += $$files($$PWD/component/libqemf/*.cpp, true) \
+    component/copyworker.cpp
+HEADERS += $$files($$PWD/component/libqemf/*.h, true) \
+    component/copyworker.h
 
 
 ## xlnt excel预览库

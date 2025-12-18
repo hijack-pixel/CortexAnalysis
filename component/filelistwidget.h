@@ -34,9 +34,12 @@ public:
 
     void clearFileList();
 
+    QListWidgetItem* getItemAtRow(const int row);
+
 signals:
     // path，fileType保存在item的userRole与userRole+1，listWidget当前项改变时发送信号
-    void itemCurrent(const QString& path, const FileType fileType);
+    // row -1 表示空列表
+    void itemCurrent(const QString& path, const FileType fileType, const int row = -1);
 
     // 图标加载完成发送，没有图标加载也发送，这样加载时disable避免异步加载出错
     void iconLoadFinish();
